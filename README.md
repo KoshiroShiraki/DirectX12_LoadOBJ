@@ -1,1 +1,3 @@
 # DirectX12_LoadOBJ
+DirectX12でwavefrontOBJ(.obj)を読み込むためのコード
+用意しているオブジェクトの著作権関係が怖いのでひとまずprivateにしておく。
