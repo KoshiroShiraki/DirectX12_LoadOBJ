@@ -192,6 +192,13 @@ HRESULT Object::LoadOBJData(std::string ModelName, ID3D12Device* device) {
 	std::vector<XMFLOAT3> vn; //法線情報
 	std::vector<OBJFaceInfo> f; //面情報(いったんstringのまま取得)
 
+	//capacityをあらかじめ用意して起き、メモリの再確保を防ぐ
+	//モデルデータが少ない場合には無駄な確保だが、ロードが終了次第速やかに開放するのでいったんはよしとしておく
+	v.reserve(400000);
+	vt.reserve(400000);
+	vn.reserve(400000);
+	f.reserve(400000);
+
 	//ファイルロード
 	FILE* fp;
 	fp = fopen(strModelPath.c_str(), "r");
@@ -201,16 +208,12 @@ HRESULT Object::LoadOBJData(std::string ModelName, ID3D12Device* device) {
 
 	char lineData[128]; //1行データ
 	//1行ずつ文字列で取得、分割＆変換しデータとして記録していく
+
 	float time = clock();
 	std::cout << "テキストデータ読み取り開始 : " << time / 1000.0f << "秒 / ";
-	int linecount = 0;
 
-	float averageSplitTime = 0.0f;
-	while (fgets(lineData, 128, fp) != NULL) {
-		linecount++;
-		//float deltaTime = clock();
+	while (fgets(lineData, 128, fp) != NULL) { //std::getlineだとあまりに遅すぎる
 		std::vector<std::string> data = split(lineData, " ");
-		//averageSplitTime += clock() - deltaTime;
 		if (data[0] == "v") {
 			v.push_back(XMFLOAT3(std::stof(data[1]), std::stof(data[2]), std::stof(data[3])));
 		}

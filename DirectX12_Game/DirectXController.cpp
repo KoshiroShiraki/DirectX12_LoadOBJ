@@ -195,10 +195,7 @@ HRESULT DirectXController::CreateResources() {
 	EnableDebugLayer();
 #endif
 	/*-----OBJデータの読み込み-----*/
-	//car.LoadOBJData("wwmbas7alhj4-Car/Car/Car/Car Obj", device);
-	car.LoadOBJData("car_2", device);
-	//car.LoadOBJData("fdx54mtvuz28-FinalBaseMesh/FinalBaseMesh", device);
-	//car.LoadOBJData("cottage_obj", device);
+	car.LoadOBJData("OBJ/99-intergalactic_spaceship-obj/Intergalactic_Spaceship-(Wavefront)", device);
 
 	/*-----PMDデータの読み込み-----*/
 	//miku.LoadPMDData("初音ミク", device);
@@ -477,7 +474,7 @@ HRESULT DirectXController::Draw() {
 	cmdList->ClearDepthStencilView(dsvH, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
 	//RenderTarget�̃N���A
-	float clearColor[] = { 0.2f,0.5f,0.1f,0.0f };
+	float clearColor[] = { 0.5f,0.0f,0.0f,0.0f };
 	cmdList->ClearRenderTargetView(rtvH, clearColor, 0, nullptr);
 
 	cmdList->RSSetViewports(1, &vp);

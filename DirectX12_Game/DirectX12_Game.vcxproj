@@ -57,6 +57,7 @@
     <ProjectGuid>{3b99de57-752d-410a-996d-535e43fd7421}</ProjectGuid>
     <RootNamespace>DirectX12Game</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <ProjectName>ObjectViewer</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
