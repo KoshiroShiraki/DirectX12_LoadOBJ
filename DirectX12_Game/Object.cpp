@@ -174,14 +174,17 @@ HRESULT Object::LoadOBJData(std::string ModelName, ID3D12Device* device) {
 	ObjectLoaded = true;
 
 	std::cout << "\n----------wavefrontOBJ読み込み開始----------\n";
+	float loadTime = clock(); //ロード開始時間
 
 	HRESULT hr;
+
 	std::string strModelPath = "Model/" + ModelName + ".obj"; //オブジェクトファイルパスの生成
 	std::ifstream file(strModelPath); //オブジェクトファイルの読み込み
 	if (!file) {
 		std::cout << "cannnot find model file\n";
 		return FALSE;
 	}
+	else std::cout << "モデルファイルパス : " << strModelPath << "\n";
 
 	//一行ずつ読み込み、[v],[vt],[vn],[f]を取得
 	std::vector<XMFLOAT3> v; //頂点座標
@@ -189,6 +192,7 @@ HRESULT Object::LoadOBJData(std::string ModelName, ID3D12Device* device) {
 	std::vector<XMFLOAT3> vn; //法線情報
 	std::vector<OBJFaceInfo> f; //面情報(いったんstringのまま取得)
 
+	//ファイルロード
 	FILE* fp;
 	fp = fopen(strModelPath.c_str(), "r");
 	if (fp == NULL) {
@@ -198,7 +202,7 @@ HRESULT Object::LoadOBJData(std::string ModelName, ID3D12Device* device) {
 	char lineData[128]; //1行データ
 	//1行ずつ文字列で取得、分割＆変換しデータとして記録していく
 	float time = clock();
-	std::cout << "テキストデータ読み取り開始 : " << time / 1000.0f << "秒\n";
+	std::cout << "テキストデータ読み取り開始 : " << time / 1000.0f << "秒 / ";
 	int linecount = 0;
 
 	float averageSplitTime = 0.0f;
@@ -240,11 +244,11 @@ HRESULT Object::LoadOBJData(std::string ModelName, ID3D12Device* device) {
 	}
 	std::cout << "テキストデータ読み取り終了 : " << clock() / 1000.0f << "秒\nテキストデータ読み取り時間 : " << (clock() - time) / 1000 << "秒\n";
 
-	std::cout << "頂点数 : " << v.size() << "\n";
+	std::cout << "頂点 : " << v.size() << "個 / UV座標 : " << vt.size() << "個 / 法線 : " << vn.size() << "個 / 面 : " << f.size() << "個\n";
 	int fSize = sizeof(OBJFaceInfo) / sizeof(std::string); //faceInfoのもつfiの要素数
 	
 	time = clock();
-	std::cout << "データ解析開始 : " << time / 1000.0f << "秒\n";
+	std::cout << "データ解析開始 : " << time / 1000.0f << "秒 / ";
 
 	unsigned indexNum = 0; //インデックスid 一頂点処理するたびにインクリメントする
 	//面情報をもとに、　頂点情報の格納と頂点インデックスの生成;
@@ -412,6 +416,8 @@ HRESULT Object::LoadOBJData(std::string ModelName, ID3D12Device* device) {
 	ibView.BufferLocation = indexBuffer->GetGPUVirtualAddress();
 	ibView.Format = DXGI_FORMAT_R32_UINT;
 	ibView.SizeInBytes = indices.size() * sizeof(indices[0]);
+
+	std::cout << "モデルロード時間 : " << (clock() - loadTime) / 1000 << "秒\n";
 
 	std::cout << "----------wavefrontOBJ読み込み終了----------\n";
 
