@@ -195,7 +195,8 @@ HRESULT DirectXController::CreateResources() {
 	EnableDebugLayer();
 #endif
 	/*-----OBJデータの読み込み-----*/
-	car.LoadOBJData("OBJ/99-intergalactic_spaceship-obj/Intergalactic_Spaceship-(Wavefront)", device);
+	//car.LoadOBJData("OBJ/41-formula-1/formula 1/Formula 1 mesh", device);
+	car.LoadOBJData("OBJ/rp_dennis_posed_004_100k", device);
 
 	/*-----PMDデータの読み込み-----*/
 	//miku.LoadPMDData("初音ミク", device);
@@ -204,12 +205,12 @@ HRESULT DirectXController::CreateResources() {
 	//ワールド行列の生成
 	worldMatrix = DirectX::XMMatrixIdentity();
 	//ビュー行列の生成
-	DirectX::XMFLOAT3 eye(0, 5, -10);
+	DirectX::XMFLOAT3 eye(0, 100, -400);
 	DirectX::XMFLOAT3 target(0, 0, 0);
 	DirectX::XMFLOAT3 up(0, 1, 0);
 	camera.InitCamera(eye, target, up);
 	//プロジェクション行列の生成
-	projectionMatrix = DirectX::XMMatrixPerspectiveFovLH(DirectX::XM_PIDIV2, static_cast<float>(window_Width) / static_cast<float>(window_Height), 1.0f, 100.0f);
+	projectionMatrix = DirectX::XMMatrixPerspectiveFovLH(DirectX::XM_PIDIV2, static_cast<float>(window_Width) / static_cast<float>(window_Height), 1.0f, 1000.0f);
 	//ResourcDescの定義
 	D3D12_RESOURCE_DESC resDesc = {};
 	resDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;

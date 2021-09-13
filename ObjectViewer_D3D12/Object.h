@@ -95,8 +95,8 @@ struct OBJVertex {
 };
 
 struct OBJFaceInfo {
-	std::string fi[4];
-	//面情報が3つのとき,f[3] = nullptr;
+	std::vector<std::string> fi; //面格納用文字列
+	int faceNum; //面を構成する頂点数
 };
 
 class Object {

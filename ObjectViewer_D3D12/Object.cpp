@@ -142,14 +142,6 @@ HRESULT Object::LoadPMDData(std::string ModelName, ID3D12Device* device) {
 	/*for (int i = 0; i < boneNum; i++) {
 		std::cout << "ボーン[" << i << "] ボーン名 : " << pmdBones[i].boneName << "\n";
 	}*/
-
-	inputLayout = new D3D12_INPUT_ELEMENT_DESC[6];
-	inputLayout[0] = { "POSITION", 0,DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
-	inputLayout[1] = { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
-	inputLayout[2] = { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
-	inputLayout[3] = { "BONE_NO", 0, DXGI_FORMAT_R16G16_UINT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
-	inputLayout[4] = { "WEIGHT", 0, DXGI_FORMAT_R8_UINT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
-	inputLayout[5] = { "EDGE_FLG", 0, DXGI_FORMAT_R8_UINT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
 	return S_OK;
 }
 
@@ -173,19 +165,19 @@ HRESULT Object::LoadOBJData(std::string ModelName, ID3D12Device* device) {
 	}
 	ObjectLoaded = true;
 
+	/*std::string testStr = "a///b/c/d";
+	std::vector<std::string> testSplit = split(unko, "/");
+	for (int i = 0; i < testSplit.size(); i++) {
+		std::cout << "testSplit[" << i << "] = " << testSplit[i] << "\n";
+	}*/
+
 	std::cout << "\n----------wavefrontOBJ読み込み開始----------\n";
 	float loadTime = clock(); //ロード開始時間
 
 	HRESULT hr;
 
 	std::string strModelPath = "Model/" + ModelName + ".obj"; //オブジェクトファイルパスの生成
-	std::ifstream file(strModelPath); //オブジェクトファイルの読み込み
-	if (!file) {
-		std::cout << "cannnot find model file\n";
-		return FALSE;
-	}
-	else std::cout << "モデルファイルパス : " << strModelPath << "\n";
-
+	
 	//一行ずつ読み込み、[v],[vt],[vn],[f]を取得
 	std::vector<XMFLOAT3> v; //頂点座標
 	std::vector<XMFLOAT2> vt; //テクスチャ座標
@@ -205,50 +197,39 @@ HRESULT Object::LoadOBJData(std::string ModelName, ID3D12Device* device) {
 	if (fp == NULL) {
 		std::cout << "cannnot open model file\n";
 	}
+	else std::cout << "モデルファイルパス : " << strModelPath << "\n";
 
-	char lineData[128]; //1行データ
+
+	char lineData[1024]; //1行データ
+	
 	//1行ずつ文字列で取得、分割＆変換しデータとして記録していく
-
 	float time = clock();
 	std::cout << "テキストデータ読み取り開始 : " << time / 1000.0f << "秒 / ";
 
 	while (fgets(lineData, 128, fp) != NULL) { //std::getlineだとあまりに遅すぎる
 		std::vector<std::string> data = split(lineData, " ");
-		if (data[0] == "v") {
+		if (data[0] == "v") { //頂点
 			v.push_back(XMFLOAT3(std::stof(data[1]), std::stof(data[2]), std::stof(data[3])));
 		}
-		else if (data[0] == "vt") {
+		else if (data[0] == "vt") { //UV
 			vt.push_back(XMFLOAT2(std::stof(data[1]), std::stof(data[2])));
 		}
-		else if (data[0] == "vn") {
+		else if (data[0] == "vn") { //法線
 			vn.push_back(XMFLOAT3(std::stof(data[1]), std::stof(data[2]), std::stof(data[3])));
 		}
-		else if (data[0] == "f") {
-			OBJFaceInfo info;
-			for (int i = 0; i < 3; i++) {
-				info.fi[i] = data[i + 1];
-				//vertNum++;
+		else if (data[0] == "f") { //面
+			OBJFaceInfo tmpInfo; //一時格納用
+			tmpInfo.fi.reserve(data.size()); //末尾に終端文字列を付加するために (面数 + 1) 個確保する
+			for (int i = 0; i < data.size() - 1; i++) {
+				tmpInfo.fi.push_back(data[i + 1]); //データは最初のID情報も記録しているので、データ取得には1つ進める必要がある
 			}
-			//面情報の数が3の場合と4の場合
-			if (data.size() == 4) {
-				info.fi[3] = "Nothing";
-				f.push_back(info);
-			}
-			else if (data.size() == 5) {
-				info.fi[3] = data[4];
-				//vertNum++;
-				f.push_back(info);
-			}
-			//面情報の数が6以上の時
-			else if (data.size() > 5) {
-				//無視
-			}
+			tmpInfo.faceNum = data.size() - 1;
+			f.push_back(tmpInfo);
 		}
 	}
 	std::cout << "テキストデータ読み取り終了 : " << clock() / 1000.0f << "秒\nテキストデータ読み取り時間 : " << (clock() - time) / 1000 << "秒\n";
 
 	std::cout << "頂点 : " << v.size() << "個 / UV座標 : " << vt.size() << "個 / 法線 : " << vn.size() << "個 / 面 : " << f.size() << "個\n";
-	int fSize = sizeof(OBJFaceInfo) / sizeof(std::string); //faceInfoのもつfiの要素数
 	
 	time = clock();
 	std::cout << "データ解析開始 : " << time / 1000.0f << "秒 / ";
@@ -269,13 +250,15 @@ HRESULT Object::LoadOBJData(std::string ModelName, ID3D12Device* device) {
 		つまりfの一要素が一頂点となる
 		*/
 
-		for (int j = 0; j < fSize - 1; j++) { //f[i].fi[2]まで。[3]は"Nothing"かそれ以外かで処理分岐
+		for (int j = 0; j < f[i].faceNum; j++) {
 			//std::cout << f[i].fi[j] << " ";
 			std::vector<std::string > faceData = split(f[i].fi[j], "/");
 			OBJVertex tmpVert; //OBJvertices一時保管用
-			//fi[3] が nothingかそれ以外かで処理が変わる
-			//nothingではない場合、4頂点であるので、三角形を生成するためにインデックスを拡張する必要がある
 			
+			/*for (int k = 0; k < faceData.size(); k++) {
+				std::cout << faceData[k] << "\n";
+			}*/
+			//面情報に含まれる情報の数に応じて分岐
 			switch (faceData.size()) {
 			case 1: //頂点データのみ
 				tmpVert.pos = v[std::stoi(faceData[0]) - 1]; //objファイルの頂点idはなぜか1スタートなので-1を忘れずに
@@ -300,54 +283,22 @@ HRESULT Object::LoadOBJData(std::string ModelName, ID3D12Device* device) {
 				}
 				break;
 			}
+			//頂点データへプッシュ
 			OBJvertices.push_back(tmpVert);
-			indices.push_back(indexNum);
-			indexNum++;
 			//vectorの解放
 			vectorRelease(faceData);
 		}
-		//面数が3の場合
-		if (f[i].fi[3] == "Nothing") { //面数が5以上の場合もあるので、今回は4つ目にNothingを挿入し、それ以降は無視している
-			//何もしない
-		}
-		//面数が4の場合
-		else {
-			OBJVertex tmpVert; //OBJvertices一時保管用
-			std::vector<std::string > faceData = split(f[i].fi[3], "/");
 
-			switch (faceData.size()) {
-			case 1: //頂点データのみ
-				tmpVert.pos = v[std::stoi(faceData[0]) - 1]; //objファイルの頂点idはなぜか1スタートなので-1を忘れずに
-				tmpVert.uv = XMFLOAT2(0.0f, 0.0f); //デフォルトは0
-				tmpVert.normal = XMFLOAT3(0.0f, 0.0f, 0.0f); //デフォルトは0
-				break;
-			case 2: //頂点/テクスチャ座標
-				tmpVert.pos = v[std::stoi(faceData[0]) - 1];
-				tmpVert.uv = vt[std::stoi(faceData[1]) - 1];
-				tmpVert.normal = XMFLOAT3(0.0f, 0.0f, 0.0f); //デフォルトは0
-				break;
-			case 3: //頂点//法線 or 頂点/テクスチャ座標/法線
-				if (faceData[1].length() == 0) { //頂点//法線
-					tmpVert.pos = v[std::stoi(faceData[0]) - 1];
-					tmpVert.uv = XMFLOAT2(0.0f, 0.0f);
-					tmpVert.normal = vn[std::stoi(faceData[2]) - 1];
-				}
-				else { //頂点/テクスチャ座標/法線
-					tmpVert.pos = v[std::stoi(faceData[0]) - 1];
-					tmpVert.uv = vt[std::stoi(faceData[1]) - 1];
-					tmpVert.normal = vn[std::stoi(faceData[2]) - 1];
-				}
-				break;
-			}
-			OBJvertices.push_back(tmpVert);
-
-			//例えば0,1,2,3の場合
-			//.objは頂点が右回りなので, 0,1,2 と0,2,3になる
-			indices.push_back(indexNum-3);
-			indices.push_back(indexNum-1);
-			indices.push_back(indexNum);
-			indexNum++;
+		//f[i].faceNumの個数をもとにインデックス値を生成
+		//4超手に乗に対応するアルゴリズム(最適ではない)
+		int indexOffset = indexNum;
+		for (int j = 0; j < (f[i].faceNum - 2); j++) {
+			indices.push_back(indexOffset);
+			indices.push_back(indexOffset + 1 + j);
+			indices.push_back(indexOffset + 2 + j);
 		}
+
+		indexNum += f[i].faceNum;
 	}
 	std::cout << "データ解析終了 : " << clock() / 1000.0f << "秒\nデータ解析時間 : " << (clock() - time) / 1000 << "秒\n";
 	
@@ -430,7 +381,7 @@ HRESULT Object::LoadOBJData(std::string ModelName, ID3D12Device* device) {
 //指定した文字列splitterで文字列strを分割
 std::vector<std::string> Object::split(std::string str, std::string splitter) {
 	std::vector<std::string> str_s;
-	str_s.reserve(8);
+	str_s.reserve(128);
 	int offset = 0; //文字列探索開始位置
 	int splitPos = 0; //分割点位置
 
@@ -440,15 +391,18 @@ std::vector<std::string> Object::split(std::string str, std::string splitter) {
 		str_s.push_back(str);
 		return str_s; //もし分割点が存在しなかったらこの時点で終了,文字列をそのまま返す
 	}
+	std::string tmp;
 	while (splitPos != -1) {
-		str_s.push_back(str.substr(offset, splitPos - offset));
+		tmp = str.substr(offset, splitPos - offset);
+		if(tmp.size() != 0) str_s.push_back(tmp);
 
 		//オフセット位置と次の分割点を探す
 		offset = splitPos + 1; //次の探索に、発見済みの分割点を含まない
 		splitPos = str.find(splitter, offset);
 	}
 	//最後の一回
-	str_s.push_back(str.substr(offset));
+	tmp = str.substr(offset);
+	if(tmp.find("\n") != std::string::npos) str_s.push_back(tmp);
 
 	return str_s;
 }
