@@ -5,6 +5,10 @@ Object::Object() {
 
 }
 
+Object::Object(std::string name) {
+	this->objName = name;
+}
+
 Object::~Object() {
 	Release();
 }
@@ -23,20 +27,22 @@ HRESULT Object::LoadOBJData(std::string ModelName, ID3D12Device* device) {
 
 	HRESULT hr;
 
-	std::string strModelPath = "Model/" + ModelName + ".obj"; //オブジェクトファイルパスの生成
+	std::string strModelPath = ModelName; //オブジェクトファイルパスの生成
 	
 	//一行ずつ読み込み、[v],[vt],[vn],[f]を取得
 	std::vector<XMFLOAT3> v; //頂点座標
 	std::vector<XMFLOAT2> vt; //テクスチャ座標
 	std::vector<XMFLOAT3> vn; //法線情報
 	std::vector<OBJFaceInfo> f; //面情報(いったんstringのまま取得)
+	std::vector<OBJFaceData> fd; //面データ
 
 	//capacityをあらかじめ確保しておき、メモリの再確保を防ぐ
 	//モデルデータが少ない場合には無駄な確保だが、ロードが終了次第速やかに開放するので現状は問題視していない
-	v.reserve(400000);
-	vt.reserve(400000);
-	vn.reserve(400000);
-	f.reserve(400000);
+	v.reserve(524288);
+	vt.reserve(524288);
+	vn.reserve(524288);
+	f.reserve(524288);
+	fd.reserve(524288);
 
 	//ファイルロード
 	FILE* fp;

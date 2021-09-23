@@ -22,21 +22,40 @@ PMDモデル読み込みは以下の書籍を模倣
 using namespace DirectX;
 
 /*-----obj用構造体-----*/
+//頂点
 struct OBJVertex {
-	XMFLOAT3 pos;
-	XMFLOAT3 normal;
-	XMFLOAT2 uv;
+	XMFLOAT3 pos; //頂点座標
+	XMFLOAT3 normal; //法線ベクトル
+	XMFLOAT2 uv; //UV座標
 };
+//マテリアル
+struct OBJMaterial {
+	std::string materialName; //マテリアル名
+	XMFLOAT3 ambient; //環境反射色
+	XMFLOAT3 diffuse; //拡散反射色
+	XMFLOAT3 specular; //鏡面反射色
+	float Nsplecelar; //鏡面反射指数
+	std::string TexturePath; //テクスチャパス
+};
+//↑wikipediaによれば、ほかにも多くの項目があるが、今回は上の6つを使用する
+
 
 struct OBJFaceInfo {
 	std::vector<std::string> fi; //面格納用文字列
 	int faceNum; //面を構成する頂点数
 };
 
+struct OBJFaceData {
+	int faceNum; //頂点数
+	std::vector<int[3]> dataID; //頂点ID。基本的に v / vt / vn だが、モデルデータによってはvtとvnがない場合があるので、その時は0を代入する
+};
+
 class Object {
 public:
 	/*-----メンバ変数-----*/
 	bool ObjectLoaded = false; //オブジェクトがロードされているかチェックする(多重ロードを防ぐ)
+
+	std::string objName; //オブジェクト名
 
 	std::vector<OBJVertex> OBJvertices; //.obj頂点データ
 	std::vector<unsigned> indices; //インデックス
@@ -48,7 +67,8 @@ public:
 	D3D12_INDEX_BUFFER_VIEW ibView = {}; //自身の持つバッファのビュー
 
 	/*-----コンストラクタ/デストラクタ-----*/
-	Object();
+	Object(); 
+	Object(std::string name);
 	~Object();
 
 	/*-----メンバ関数-----*/

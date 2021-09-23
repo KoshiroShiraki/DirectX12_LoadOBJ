@@ -196,7 +196,7 @@ HRESULT DirectXController::CreateResources() {
 	EnableDebugLayer();
 #endif
 	/*-----OBJデータの読み込み-----*/
-	car.LoadOBJData("OBJ/41-formula-1/formula 1/Formula 1 mesh", device);
+	car.LoadOBJData("Model/OBJ/41-formula-1/formula 1/Formula 1 mesh.obj", device);
 
 	/*-----ConstantBufferの生成-----*/
 	//ワールド行列の生成
