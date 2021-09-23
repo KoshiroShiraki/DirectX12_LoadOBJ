@@ -112,7 +112,7 @@ HRESULT DirectXController::InitD3D(HWND hwnd) {
 	backBuffers.resize(swapchainDesc.BufferCount);
 	hr = factory->CreateSwapChainForHwnd(cmdQueue, hwnd, &swapchainDesc, nullptr, nullptr, (IDXGISwapChain1**)&swapchain);
 	if (FAILED(hr)) {
-		std::cout << "Failed to Create SwapChain";
+		std::cout << "Failed to Create SwapChain\n";
 		return hr;
 	}
 
@@ -123,9 +123,10 @@ HRESULT DirectXController::InitD3D(HWND hwnd) {
 	heapDesc.NodeMask = 0;
 	heapDesc.NumDescriptors = 2;
 	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-	//DescriptorHeapの生成
+	//DescriptorHeapの生成(RTV)
 	hr = device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&rtvHeap));
 	if (FAILED(hr)) {
+		std::cout << "Failed to Create Descriptor Heap\n";
 		return 0;
 	}
 	//RenderTargetViewの生成
@@ -195,11 +196,7 @@ HRESULT DirectXController::CreateResources() {
 	EnableDebugLayer();
 #endif
 	/*-----OBJデータの読み込み-----*/
-	//car.LoadOBJData("OBJ/41-formula-1/formula 1/Formula 1 mesh", device);
-	car.LoadOBJData("OBJ/rp_dennis_posed_004_100k", device);
-
-	/*-----PMDデータの読み込み-----*/
-	//miku.LoadPMDData("初音ミク", device);
+	car.LoadOBJData("OBJ/41-formula-1/formula 1/Formula 1 mesh", device);
 
 	/*-----ConstantBufferの生成-----*/
 	//ワールド行列の生成
@@ -214,7 +211,7 @@ HRESULT DirectXController::CreateResources() {
 	//ResourcDescの定義
 	D3D12_RESOURCE_DESC resDesc = {};
 	resDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-	resDesc.Width = (sizeof(MatrixData) + 0xff) & ~0xff;
+	resDesc.Width = (sizeof(MatrixData) + 0xff) & ~0xff; //定数バッファは256バイトアライメントしなくてはいけない(らしい)
 	resDesc.Height = 1;
 	resDesc.DepthOrArraySize = 1;
 	resDesc.MipLevels = 1;
@@ -368,15 +365,6 @@ HRESULT DirectXController::SetGraphicsPipeLine() {
 		},
 		{
 			"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
-		},
-		{
-			"BONE_NO", 0, DXGI_FORMAT_R16G16_UINT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
-		},
-		{
-			"WEIGHT", 0, DXGI_FORMAT_R8_UINT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
-		},
-		{
-			"EDGE_FLG", 0, DXGI_FORMAT_R8_UINT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
 		},
 	};
 	/*-----GraphicsPipeLineStateの定義-----*/
