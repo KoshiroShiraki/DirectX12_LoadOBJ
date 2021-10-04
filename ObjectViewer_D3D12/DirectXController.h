@@ -25,11 +25,14 @@
 #pragma comment(lib,"DirectXTex.lib")
 #pragma warning(disable: 4996)
 
+//定数バッファ用
 struct MatrixData {
 	DirectX::XMMATRIX w;
 	DirectX::XMMATRIX v;
 	DirectX::XMMATRIX p;
 	DirectX::XMFLOAT3 eye;
+
+	char padding[52];
 };
 
 class DirectXController {
@@ -72,8 +75,8 @@ public:
 	//ID3D12Resource* indexBuffer = nullptr;
 	ID3D12Resource* constBuffer = nullptr;
 
-	Object miku;
 	Object car;
+
 
 	Camera cam;
 

@@ -191,18 +191,19 @@ HRESULT DirectXController::InitD3D(HWND hwnd) {
 
 HRESULT DirectXController::CreateResources() {
 	HRESULT hr;
-
 #ifdef _DEBUG
 	EnableDebugLayer();
 #endif
 	/*-----OBJデータの読み込み-----*/
-	car.LoadOBJData("Model/OBJ/41-formula-1/formula 1/Formula 1 mesh.obj", device);
-
+	//car.OBJ_LoadModelData("Model/OBJ/41-formula-1/formula 1/Formula 1 mesh.obj", device);
+	car.OBJ_LoadModelData("Model/OBJ/jzb865er6v-IronMan/IronMan/IronMan.obj", device);
+	//car.OBJ_LoadModelData("Model/OBJ/20-livingroom_obj/InteriorTest.obj", device);
+	
 	/*-----ConstantBufferの生成-----*/
 	//ワールド行列の生成
 	worldMatrix = DirectX::XMMatrixIdentity();
 	//ビュー行列の生成
-	DirectX::XMFLOAT3 eye(0, 100, -400);
+	DirectX::XMFLOAT3 eye(0, 100, -300);
 	DirectX::XMFLOAT3 target(0, 0, 0);
 	DirectX::XMFLOAT3 up(0, 1, 0);
 	camera.InitCamera(eye, target, up);
@@ -211,7 +212,7 @@ HRESULT DirectXController::CreateResources() {
 	//ResourcDescの定義
 	D3D12_RESOURCE_DESC resDesc = {};
 	resDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-	resDesc.Width = (sizeof(MatrixData) + 0xff) & ~0xff; //定数バッファは256バイトアライメントしなくてはいけない(らしい)
+	resDesc.Width = sizeof(MatrixData);
 	resDesc.Height = 1;
 	resDesc.DepthOrArraySize = 1;
 	resDesc.MipLevels = 1;
@@ -323,23 +324,32 @@ HRESULT DirectXController::SetGraphicsPipeLine() {
 	samplerDesc.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	samplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
 	//DescriptorTableの生成
-	D3D12_DESCRIPTOR_RANGE desTbRange[1] = {};
+	D3D12_DESCRIPTOR_RANGE desTbRange[2] = {};
 	//定数バッファ(wvp行列)
 	desTbRange[0].NumDescriptors = 1;
 	desTbRange[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
 	desTbRange[0].BaseShaderRegister = 0;
 	desTbRange[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+	//マテリアルバッファ
+	desTbRange[1].NumDescriptors = 1;
+	desTbRange[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+	desTbRange[1].BaseShaderRegister = 1;
+	desTbRange[1].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 	//RootPramaterの生成
-	D3D12_ROOT_PARAMETER rootParam[1] = {};
+	D3D12_ROOT_PARAMETER rootParam[2] = {};
 	rootParam[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	rootParam[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+	rootParam[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 	rootParam[0].DescriptorTable.pDescriptorRanges = &desTbRange[0];
 	rootParam[0].DescriptorTable.NumDescriptorRanges = 1;
+	rootParam[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParam[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	rootParam[1].DescriptorTable.pDescriptorRanges = &desTbRange[1];
+	rootParam[1].DescriptorTable.NumDescriptorRanges = 1;
 	//RootSignatureの定義
 	D3D12_ROOT_SIGNATURE_DESC rootSigDesc = {};
 	rootSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 	rootSigDesc.pParameters = rootParam;
-	rootSigDesc.NumParameters = 1;
+	rootSigDesc.NumParameters = 2;
 	rootSigDesc.pStaticSamplers = &samplerDesc;
 	rootSigDesc.NumStaticSamplers = 1;
 	hr = D3D12SerializeRootSignature(&rootSigDesc, D3D_ROOT_SIGNATURE_VERSION_1_0, &rootSig, &errorBlob);
@@ -475,6 +485,10 @@ HRESULT DirectXController::Draw() {
 
 	auto heapHandle = basicDescHeap->GetGPUDescriptorHandleForHeapStart();
 	cmdList->SetGraphicsRootDescriptorTable(0, heapHandle);
+
+	cmdList->SetDescriptorHeaps(1, &car.materialDescHeap);
+	heapHandle = car.materialDescHeap->GetGPUDescriptorHandleForHeapStart();
+	cmdList->SetGraphicsRootDescriptorTable(1, heapHandle);
 
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	cmdList->IASetVertexBuffers(0, 1, &car.vbView);
