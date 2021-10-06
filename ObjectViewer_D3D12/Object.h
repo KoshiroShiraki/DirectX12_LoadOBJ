@@ -53,7 +53,7 @@ struct OBJMaterialCB {
 	XMFLOAT3 specular; //鏡面反射色
 	float Nspecular; //鏡面反射指数
 
-	char padding[216];
+	float padding[54];
 };
 //マテリアル
 struct OBJMaterial {

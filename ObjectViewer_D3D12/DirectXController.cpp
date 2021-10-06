@@ -195,8 +195,8 @@ HRESULT DirectXController::CreateResources() {
 	EnableDebugLayer();
 #endif
 	/*-----OBJデータの読み込み-----*/
-	//car.OBJ_LoadModelData("Model/OBJ/41-formula-1/formula 1/Formula 1 mesh.obj", device);
-	car.OBJ_LoadModelData("Model/OBJ/jzb865er6v-IronMan/IronMan/IronMan.obj", device);
+	car.OBJ_LoadModelData("Model/OBJ/41-formula-1/formula 1/Formula 1 mesh.obj", device);
+	//car.OBJ_LoadModelData("Model/OBJ/jzb865er6v-IronMan/IronMan/IronMan.obj", device);
 	//car.OBJ_LoadModelData("Model/OBJ/20-livingroom_obj/InteriorTest.obj", device);
 	
 	/*-----ConstantBufferの生成-----*/
@@ -239,6 +239,7 @@ HRESULT DirectXController::CreateResources() {
 		std::cout << "Failed to Map constBuffer\n";
 		return hr;
 	}
+	std::cout << &mapMatrix << std::endl;
 	mapMatrix->w = worldMatrix;
 	mapMatrix->v = camera.viewMatrix;
 	mapMatrix->p = projectionMatrix;
@@ -342,7 +343,7 @@ HRESULT DirectXController::SetGraphicsPipeLine() {
 	rootParam[0].DescriptorTable.pDescriptorRanges = &desTbRange[0];
 	rootParam[0].DescriptorTable.NumDescriptorRanges = 1;
 	rootParam[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	rootParam[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	rootParam[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	rootParam[1].DescriptorTable.pDescriptorRanges = &desTbRange[1];
 	rootParam[1].DescriptorTable.NumDescriptorRanges = 1;
 	//RootSignatureの定義
@@ -405,7 +406,7 @@ HRESULT DirectXController::SetGraphicsPipeLine() {
 	gPipeLine.InputLayout.NumElements = _countof(inputLayout);
 	//PrimitiveTopologyの設定
 	gPipeLine.IBStripCutValue = D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED;
-	gPipeLine.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
+	gPipeLine.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	//RenderTargetの設定
 	gPipeLine.NumRenderTargets = 1;
 	gPipeLine.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;

@@ -79,7 +79,6 @@ HRESULT Object::OBJ_LoadModelData(std::string modelPath, ID3D12Device* device) {
 		return S_OK;
 	}
 	ObjectLoaded = true;
-
 	std::cout << "\n-------------------------\n";
 	std::cout << "Loading Model(start)" << std::endl;
 
@@ -392,13 +391,13 @@ HRESULT Object::OBJ_LoadModelData(std::string modelPath, ID3D12Device* device) {
 
 	/*-----MaterialBufferの生成-----*/
 	//ResourceDescの変更
-	size_t bufSize = sizeof(OBJMaterialCB) * materials.size();
-	resDesc.Width = bufSize;
+	resDesc.Width = sizeof(OBJMaterialCB) * materials.size();
 	//MaterialBufferの生成
 	hr = device->CreateCommittedResource(&heapProp, D3D12_HEAP_FLAG_NONE, &resDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&materialBuffer));
 	if (FAILED(hr)) {
 		std::cout << "Failed to Create materialBuffer" << std::endl;
 	}
+	std::cout << materialBuffer->GetDesc().Width << std::endl;
 	/*-----マテリアルデータのマップ-----*/
 	OBJMaterialCB* matMap;
 	hr = materialBuffer->Map(0, nullptr, (void**)&matMap);
@@ -410,10 +409,10 @@ HRESULT Object::OBJ_LoadModelData(std::string modelPath, ID3D12Device* device) {
 		memcpy((matMap + i), &materials[i].mcb, sizeof(OBJMaterialCB));
 	}
 	for (int i = 0; i < 3; i++) {
-		std::cout << matMap[i].ambient.x << "/" << matMap[i].ambient.y << "/" << matMap[i].ambient.z << std::endl;
-		std::cout << matMap[i].diffuse.x << "/" << matMap[i].diffuse.y << "/" << matMap[i].diffuse.z << std::endl;
-		std::cout << matMap[i].specular.x << "/" << matMap[i].specular.y << "/" << matMap[i].specular.z << std::endl;
-		std::cout << matMap[i].Nspecular << std::endl << std::endl;
+		std::cout << &matMap[i].ambient.x << "/" << &matMap[i].ambient.y << "/" << &matMap[i].ambient.z << std::endl;
+		std::cout << &matMap[i].diffuse.x << "/" << &matMap[i].diffuse.y << "/" << &matMap[i].diffuse.z << std::endl;
+		std::cout << &matMap[i].specular.x << "/" << &matMap[i].specular.y << "/" << &matMap[i].specular.z << std::endl;
+		std::cout << &matMap[i].Nspecular << std::endl << std::endl;
 	}
 	materialBuffer->Unmap(0, nullptr);
 
