@@ -60,7 +60,6 @@ public:
 	ID3D12PipelineState* PipeLineState = nullptr;
 
 	ID3D12RootSignature* rootsignature = nullptr;
-	Camera camera;
 
 	ID3D12Fence* fence = nullptr;
 	UINT fenceVal = 0;
@@ -77,9 +76,6 @@ public:
 
 	Object car;
 
-
-	Camera cam;
-
 	XMMATRIX worldMatrix;
 	XMMATRIX viewMatrix;
 	XMMATRIX projectionMatrix;
@@ -90,10 +86,11 @@ public:
 
 	/*-----メンバ関数-----*/
 	HRESULT InitD3D(HWND hwnd);
-	HRESULT CreateResources();
+	HRESULT CreateResources(Camera &camera);
 	HRESULT CreateShaders();
 	HRESULT SetGraphicsPipeLine();
 	HRESULT Draw();
+	HRESULT UpdateConstantBuffer(Camera &camera);
 	void EnableDebugLayer();
 	void Release();
 

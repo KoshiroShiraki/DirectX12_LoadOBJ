@@ -20,12 +20,13 @@ public:
 public:
 	DirectXController DxCon; //DirectX制御クラス
 	Input input; //インプット制御クラス
+	Camera camera; //カメラ制御クラス
 
 	WNDCLASSEX wcx = {}; //ウィンドウレジスタークラス
 	HWND hwnd; //ウィンドウハンドル(ウィンドウ識別)
 
 	/*-----メンバ関数-----*/
-	void Initialize(HWND hwnd);
+	void Initialize();
 	void Update();
 	void Terminate();
 

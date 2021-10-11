@@ -6,21 +6,22 @@
 #endif
 
 
-HRESULT InitWindow(Application &app);
+HRESULT InitWindow();
 LRESULT WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
+
+Application app;
 
 int main() {
 	HRESULT hr;
-	Application app;
 	/*-----ウィンドウ生成-----*/
-	hr = InitWindow(app);
+	hr = InitWindow();
 	if (FAILED(hr)) {
 		std::cout << "Failed to InitWindow\n";
 		return 0;
 	}
 
 	/*-----アプリケーション初期化-----*/
-	app.Initialize(app.hwnd);
+	app.Initialize();
 
 	/*-----メッセージループ-----*/
 	MSG msg = {};
@@ -37,17 +38,17 @@ int main() {
 		app.Update();
 	}
 
-	//�E�B���h�E�N���X�̍폜
+	//ウィンドウクラスレジスタの解除
 	UnregisterClass(app.wcx.lpszClassName, app.wcx.hInstance);
 
-	/*-----�I������-----*/
+	/*-----アプリケーション終了-----*/
 	app.Terminate();
 
 	return 0;
 }
 
-HRESULT InitWindow(Application &app) {
-	//�E�B���h�E�N���X�̓o�^�Ɛ���
+HRESULT InitWindow() {
+	//ウィンドウクラスの登録
 	app.wcx.cbSize = sizeof(WNDCLASSEX);
 	app.wcx.lpfnWndProc = (WNDPROC)WindowProc;
 	app.wcx.lpszClassName = _T("DX12Sample");
@@ -55,11 +56,11 @@ HRESULT InitWindow(Application &app) {
 	if (!RegisterClassEx(&app.wcx)) {
 		return S_FALSE;
 	}
-	//�E�B���h�E�T�C�Y�̐���
+	//ウィンドウサイズ
 	RECT rc = { 0,0,window_Width,window_Height };
 	AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, false);
 
-	//�E�B���h�E�̐���
+	//ウィンドウ生成
 	app.hwnd = CreateWindow(
 		app.wcx.lpszClassName,
 		_T("DX12Sample"),
@@ -74,7 +75,7 @@ HRESULT InitWindow(Application &app) {
 		nullptr
 	);
 
-	//�E�B���h�E�̕\��
+	//ウィンドウ表示
 	ShowWindow(app.hwnd, SW_SHOW);
 	return S_OK;
 }
@@ -89,10 +90,6 @@ LRESULT WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 	switch (msg) {
 	case WM_DESTROY:
 		PostQuitMessage(0);
-		return 0;
-	case WM_KEYDOWN:
-		return 0;
-	case WM_KEYUP:
 		return 0;
 	}
 	return DefWindowProc(hwnd, msg, wparam, lparam);

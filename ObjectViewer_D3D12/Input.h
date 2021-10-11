@@ -8,6 +8,9 @@ WASD -> カメラ位置移動
 #pragma once
 #include<Windows.h>
 #include<iostream>
+#include<DirectXMath.h>
+
+using namespace DirectX;
 
 //なぜかキーボードのアルファベットキーに対応したマクロがWindowsAPI出は定義されていないので、使用する分だけ定義しておく
 //参照 -> https://docs.microsoft.com/ja-jp/windows/win32/inputdev/virtual-key-codes
@@ -27,14 +30,24 @@ public:
 	Input();
 	~Input();
 
-private:
+public:
 	char inputKey[256]; //キーが押されている間はinputKey[入力キー] = 0x01,キーが離されている間はinputKey[入力キー] = 0x00
 	bool inputEnable; //入力受付フラグ
+	bool cameraRotateEnable; //右クリックされている間は、カメラ方向操作を受け付ける
+
+	POINT startPos; //1フレーム前のマウスカーソル座標(視点)
+	POINT endPos; //現在フレームのマウスカーソル座標(終点)
+	POINT dPos; //座標の変化量
+	
+private:
+	const int checkKey = 0x8000; //32ビットの最上位ビットが1 = 押されているなのでその判定用に使う
 
 public:
-	void keyPressed(WPARAM param); //キーが押された
-	void keyRelesed(WPARAM param); //キーが離された
-	void enableInput(bool flag);  //キー入力を受け付けるか
+	void update();
+	void inputKeyCheck(WPARAM param);
+	void inputMouseCheck(WPARAM param);
+
+	void MouseLeftButtonDown(bool flag); //マウスが右クリックされている
 };
 
 

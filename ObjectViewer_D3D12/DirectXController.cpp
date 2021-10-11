@@ -189,7 +189,7 @@ HRESULT DirectXController::InitD3D(HWND hwnd) {
 	return S_OK;
 }
 
-HRESULT DirectXController::CreateResources() {
+HRESULT DirectXController::CreateResources(Camera &camera) {
 	HRESULT hr;
 #ifdef _DEBUG
 	EnableDebugLayer();
@@ -203,8 +203,8 @@ HRESULT DirectXController::CreateResources() {
 	//ワールド行列の生成
 	worldMatrix = DirectX::XMMatrixIdentity();
 	//ビュー行列の生成
-	DirectX::XMFLOAT3 eye(0, 100, -300);
-	DirectX::XMFLOAT3 target(0, 0, 0);
+	DirectX::XMFLOAT3 eye(0, 0, 0);
+	DirectX::XMFLOAT3 target(0, 0, eye.z + 1);
 	DirectX::XMFLOAT3 up(0, 1, 0);
 	camera.InitCamera(eye, target, up);
 	//プロジェクション行列の生成
@@ -459,9 +459,6 @@ HRESULT DirectXController::Draw() {
 
 	/*-----コマンド命令-----*/
 	//RenderTargetViewの取得
-	angle += 0.001f;
-	worldMatrix = DirectX::XMMatrixRotationY(angle);
-	mapMatrix->w = worldMatrix;
 
 	auto bbID = swapchain->GetCurrentBackBufferIndex();
 
@@ -538,6 +535,12 @@ HRESULT DirectXController::Draw() {
 	//�t���b�v
 	swapchain->Present(1, 0);
 	
+	return S_OK;
+}
+
+HRESULT DirectXController::UpdateConstantBuffer(Camera& camera) {
+	mapMatrix->v = camera.viewMatrix;
+
 	return S_OK;
 }
 
