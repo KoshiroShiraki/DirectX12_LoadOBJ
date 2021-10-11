@@ -11,6 +11,7 @@ PMDモデル読み込みは以下の書籍を模倣
 
 #pragma once
 #include<DirectXMath.h>
+#include<DirectXTex.h>
 #include<d3d12.h>
 #include<d3dx12.h>
 #include<vector>
@@ -19,12 +20,13 @@ PMDモデル読み込みは以下の書籍を模倣
 #include<fstream>
 #include<time.h>
 #include"ConstValue.h"
+#include"PathController.h"
 using namespace DirectX;
 
-#define MAX_PATH_LENGTH 128 //メッシュ/マテリアルファイルパス最大長さ
 #define MAX_READ_LINEDATA 1024 //メッシュ/マテリアルファイルを読み込むときの最大文字数/行
 #define MAX_MATERIAL_REFERENCE 128 
 
+#pragma comment(lib,"DirectXTex.lib")
 
 /*-----obj用構造体-----*/
 //頂点
@@ -35,35 +37,36 @@ struct OBJVertex {
 };
 //マテリアル参照データ。GPUにdraw命令を送る際にこの構造体データをもとにマテリアルを切り替える
 struct OBJMaterialRef {
-	std::string matName;
-	std::vector<int> idxOffset; //マテリアル適用するインデックスのオフセット
+	std::string matName; //マテリアル名
 
-	int existFlag; //メッシュファイルでで宣言されたマテリアルがマテリアルファイルにも存在するか(存在する = 1)
+	int matID; //マテリアルID
+
+	int idxOffset; //マテリアル適用開始位置
+	int idxNum;; //マテリアル適用数
 
 	OBJMaterialRef();
-
-	~OBJMaterialRef();
-
-	OBJMaterialRef(const OBJMaterialRef& mr);
 };
 //コンスタントバッファとしてシェーダに送るマテリアルデータ
 struct OBJMaterialCB {
-	XMFLOAT3 ambient; //環境反射色
-	XMFLOAT3 diffuse; //拡散反射色
-	XMFLOAT3 specular; //鏡面反射色
+	XMFLOAT4 ambient; //環境反射色
+	XMFLOAT4 diffuse; //拡散反射色
+	XMFLOAT4 specular; //鏡面反射色
 	float Nspecular; //鏡面反射指数
 
-	float padding[54];
+	char padding[204];
 };
 //マテリアル
 struct OBJMaterial {
 	OBJMaterialCB mcb; //シェーダに送るデータ
 
-	std::string ambTexPath; //アンビエントテクスチャパス
-	std::string difTexPath; //ディフューズテクスチャパス
-	std::string speTexPath; //スペキュラテクスチャパス
+	std::string materialName;
+
+	char ambTexPath[MAX_PATH_LENGTH]; //アンビエントテクスチャパス
+	char difTexPath[MAX_PATH_LENGTH]; //ディフューズテクスチャパス
+	char speTexPath[MAX_PATH_LENGTH]; //スペキュラテクスチャパス
 
 	OBJMaterial();
+	void Init();
 };
 
 struct OBJFaceData {
@@ -104,7 +107,7 @@ public:
 	~Object();
 
 	/*-----メンバ関数-----*/
-	HRESULT OBJ_LoadModelData(std::string ModelPath, ID3D12Device* device); //OBJモデル読み込み
+	HRESULT OBJ_LoadModelData(std::string path, ID3D12Device* device); //OBJモデル読み込み
 	/*
 	以下の2つに関しては、膨大に繰り返される処理であるため極力if分岐処理を減らすために別々の関数にする
 	*/

@@ -195,9 +195,9 @@ HRESULT DirectXController::CreateResources() {
 	EnableDebugLayer();
 #endif
 	/*-----OBJデータの読み込み-----*/
-	car.OBJ_LoadModelData("Model/OBJ/41-formula-1/formula 1/Formula 1 mesh.obj", device);
-	//car.OBJ_LoadModelData("Model/OBJ/jzb865er6v-IronMan/IronMan/IronMan.obj", device);
-	//car.OBJ_LoadModelData("Model/OBJ/20-livingroom_obj/InteriorTest.obj", device);
+	car.OBJ_LoadModelData("\\ObjectViewer_D3D12\\Model\\OBJ\\41-formula-1\\formula 1\\Formula 1 mesh.obj", device);
+	//car.OBJ_LoadModelData("ObjectViewer_D3D12\\Model/OBJ/jzb865er6v-IronMan/IronMan/IronMan.obj", device);
+	//car.OBJ_LoadModelData("ObjectViewer_D3D12\\Model/OBJ/20-livingroom_obj/InteriorTest.obj", device);
 	
 	/*-----ConstantBufferの生成-----*/
 	//ワールド行列の生成
@@ -239,11 +239,14 @@ HRESULT DirectXController::CreateResources() {
 		std::cout << "Failed to Map constBuffer\n";
 		return hr;
 	}
-	std::cout << &mapMatrix << std::endl;
 	mapMatrix->w = worldMatrix;
 	mapMatrix->v = camera.viewMatrix;
 	mapMatrix->p = projectionMatrix;
 	mapMatrix->eye = eye;
+	/*std::cout << &mapMatrix->w << std::endl;
+	std::cout << &mapMatrix->v << std::endl;
+	std::cout << &mapMatrix->p << std::endl;
+	std::cout << &mapMatrix->eye<< std::endl;
 
 	/*-----ConstantBufferViewの生成-----*/
 	//DescriptorHeapの定義
@@ -273,10 +276,16 @@ HRESULT DirectXController::CreateResources() {
 HRESULT DirectXController::CreateShaders() {
 	//VertexShaderのコンパイル
 	HRESULT hr;
+
+
 	hr = D3DCompileFromFile(L"VertexShader.hlsl", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "main", "vs_5_0", D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, 0, &vertexShader, &errorBlob);
 	if (FAILED(hr)) {
 		if (hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND)) {
-			std::cout << "Not Found File\n";
+			//シェーダファイルが見つからない場合、コンパイル済みのcsoファイルを探す
+			hr = D3DReadFileToBlob(L"VertexShader.cso", &vertexShader);
+			if (FAILED(hr)) {
+				std::cout << "Error : There is no VertexShader" << std::endl;
+			}
 		}
 		else {
 			std::string errstr;
@@ -293,7 +302,11 @@ HRESULT DirectXController::CreateShaders() {
 	hr = D3DCompileFromFile(L"PixelShader.hlsl", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "main", "ps_5_0", D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, 0, &pixelShader, &errorBlob);
 	if (FAILED(hr)) {
 		if (hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND)) {
-			std::cout << "Not Found File\n";
+			//シェーダファイルが見つからない場合、コンパイル済みのcsoファイルを探す
+			hr = D3DReadFileToBlob(L"PixelShader.cso", &pixelShader);
+			if (FAILED(hr)) {
+				std::cout << "Error : There is no PixelShader" << std::endl;
+			}
 		}
 		else {
 			std::string errstr;
@@ -305,9 +318,9 @@ HRESULT DirectXController::CreateShaders() {
 			return hr;
 		}
 	}
-
 	return S_OK;
 }
+
 
 HRESULT DirectXController::SetGraphicsPipeLine() {
 	HRESULT hr;
@@ -474,7 +487,7 @@ HRESULT DirectXController::Draw() {
 	cmdList->ClearDepthStencilView(dsvH, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
 	//RenderTarget�̃N���A
-	float clearColor[] = { 0.5f,0.0f,0.0f,0.0f };
+	float clearColor[] = { 0.6f,0.6f,0.6f,1.0f };
 	cmdList->ClearRenderTargetView(rtvH, clearColor, 0, nullptr);
 
 	cmdList->RSSetViewports(1, &vp);
@@ -487,15 +500,18 @@ HRESULT DirectXController::Draw() {
 	auto heapHandle = basicDescHeap->GetGPUDescriptorHandleForHeapStart();
 	cmdList->SetGraphicsRootDescriptorTable(0, heapHandle);
 
-	cmdList->SetDescriptorHeaps(1, &car.materialDescHeap);
-	heapHandle = car.materialDescHeap->GetGPUDescriptorHandleForHeapStart();
-	cmdList->SetGraphicsRootDescriptorTable(1, heapHandle);
-
 	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	cmdList->IASetVertexBuffers(0, 1, &car.vbView);
 	cmdList->IASetIndexBuffer(&car.ibView);
 
-	cmdList->DrawIndexedInstanced(car.indices.size(), 1, 0, 0, 0);
+	cmdList->SetDescriptorHeaps(1, &car.materialDescHeap);
+	heapHandle = car.materialDescHeap->GetGPUDescriptorHandleForHeapStart();
+	for (int i = 0; i < car.matRef.size(); i++) {
+		D3D12_GPU_DESCRIPTOR_HANDLE tmpHandle;
+		tmpHandle.ptr = heapHandle.ptr + device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * car.matRef[i].matID;
+		cmdList->SetGraphicsRootDescriptorTable(1, tmpHandle);
+		cmdList->DrawIndexedInstanced(car.matRef[i].idxNum, 1, car.matRef[i].idxOffset, 0, 0);
+	}
 
 	BarrierDesc.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
 	BarrierDesc.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;

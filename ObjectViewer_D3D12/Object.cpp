@@ -33,31 +33,21 @@ OBJFaceData::OBJFaceData(const OBJFaceData& fd) {
 }
 
 OBJMaterial::OBJMaterial() {
-	mcb.ambient = XMFLOAT3(0.0f, 0.0f, 0.0f);
-	mcb.diffuse = XMFLOAT3(0.0f, 0.0f, 0.0f);
-	mcb.specular = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	Init();
+}
+void OBJMaterial::Init() {
+	mcb.ambient = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+	mcb.diffuse = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+	mcb.specular = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
 	mcb.Nspecular = 0.0f;
 
-	ambTexPath = "noTex";
-	difTexPath = "noTex";
-	speTexPath = "noTex";
+	ambTexPath[0] = '\0';
+	difTexPath[0] = '\0';
+	speTexPath[0] = '\0';
 }
 
 OBJMaterialRef::OBJMaterialRef() {
-	existFlag = 0;
-}
-
-OBJMaterialRef::~OBJMaterialRef() {
-	idxOffset.clear();
-	idxOffset.shrink_to_fit();
-}
-
-OBJMaterialRef::OBJMaterialRef(const OBJMaterialRef& mr) {
-	this->matName = mr.matName;
-	for (int mrCnt = 0; mrCnt < mr.idxOffset.size(); mrCnt++) {
-		this->idxOffset.push_back(mr.idxOffset[mrCnt]);
-	}
-	this->existFlag = mr.existFlag;
+	matID = 0;
 }
 
 Object::Object() {
@@ -72,7 +62,7 @@ Object::~Object() {
 	Release();
 }
 
-HRESULT Object::OBJ_LoadModelData(std::string modelPath, ID3D12Device* device) {
+HRESULT Object::OBJ_LoadModelData(std::string path, ID3D12Device* device) {
 	//オブジェクトの多重ロードを防ぐ
 	if (ObjectLoaded) {
 		std::cout << "Object File is already loaded\n";
@@ -84,22 +74,33 @@ HRESULT Object::OBJ_LoadModelData(std::string modelPath, ID3D12Device* device) {
 
 	HRESULT hr;
 
+	PathController pc; //パスコントローラ
+
+	char modelPath[MAX_PATH_LENGTH]; //モデルファイルパス
+	char meshPath[MAX_PATH_LENGTH]; //メッシュファイルパス
+	char materialPath[MAX_PATH_LENGTH]; //マテリアルファイルパス
+	char modelDirName[64]; //モデルファイル名(メッシュファイルパス, テクスチャファイルパスの生成に使う)
+
+	//メッシュファイルパスの生成
+	pc.CreatePath(path.c_str(), meshPath);
+	//モデルファイルのパスの生成(メッシュファイルパスの親ディレクトリがモデルファイルなので、メッシュファイルパスからメッシュファイル名.拡張子を削除する)
+	pc.RemoveLeafPath(meshPath, modelPath);
+	//モデルファイル名の取得
+	pc.GetLeafDirectryName(modelPath, modelDirName, 64);
+
+	/*std::cout << modelPath << std::endl;
+	std::cout << meshPath << std::endl;
+	std::cout << modelDirName << std::endl;*/
+
 	float loadTime = clock(); //ロード開始時間を取得
 
 	//ファイルロード
-	hr = checkPathLength(modelPath.size());
-	if (FAILED(hr)) return S_FALSE;
 	FILE* modelFp; //モデルファイル
-	modelFp = fopen(modelPath.c_str(), "r");
+	modelFp = fopen(meshPath, "r");
 	if (modelFp == NULL) {
 		std::cout << "cannnot open model file\n";
-		fclose(modelFp);
 		return S_FALSE;
 	}
-
-	//メッシュファイルパスから相対パスを作る
-	int relativePos = modelPath.find_last_of("/"); //相対パス位置
-	std::string matPath = modelPath.substr(0, relativePos);
  	
 	//一行ずつ読み込み、[v],[vt],[vn],[f]を取得
 	std::vector<XMFLOAT3> v; //頂点座標
@@ -114,8 +115,8 @@ HRESULT Object::OBJ_LoadModelData(std::string modelPath, ID3D12Device* device) {
 	fd.reserve(524288);
 	
 	/*
-	OBJファイルは面データの参照を1スタートで行う
-	要素[0]にデフォルト値を代入して起き、面データの対応がないときは、頂点にこの値を代入する
+	OBJファイルは面データの頂点カウントを1スタートで行う
+	要素[0]にデフォルト値を代入して起き、面データの対応がないとき(v//とかv/vt/とか)は、頂点にこの値を代入する
 	*/
 	v.push_back(XMFLOAT3(0.0f,0.0f,0.0f));
 	vt.push_back(XMFLOAT2(0.0f, 0.0f));
@@ -128,12 +129,8 @@ HRESULT Object::OBJ_LoadModelData(std::string modelPath, ID3D12Device* device) {
 
 	bool isMaterial = false; //マテリアルファイルが存在するかフラグ
 
-	std::map<std::string, std::vector<int>> matChecker; //usemtl 〇〇の〇〇が重複することがあるので、監視
-
-
-	std::cout << "Mesh File : [" << modelPath << "]" << std::endl;
-
 	int idxOffset = 0; //インデックスオフセット 3頂点の三角形ポリゴンメッシュで描画していくので、頂点オフセットは (面で宣言される頂点数 - 2) * 3ストライドする必要あり
+
 	//1行ずつ文字列で取得、分割＆変換しデータとして記録していく
 	while (fgets(lineData, MAX_READ_LINEDATA, modelFp) != NULL) {
 		//読み込んだ一行のデータを分割し、配列に格納できる形にする
@@ -152,112 +149,148 @@ HRESULT Object::OBJ_LoadModelData(std::string modelPath, ID3D12Device* device) {
 
 			OBJFaceData tmpData(splitData.size() - 1);
 			for (int i = 0; i < tmpData.vertexCnt; i++) {
-				OBJ_splitSlash(splitData[i + 1], tmpData.dataIndex[i]);
+				OBJ_splitSlash(splitData[i + 1], tmpData.dataIndex[i]); //面データはスラッシュ区切り
 			}
 			fd.push_back(tmpData);
 		}
 		else if (splitData[0] == "mtllib") { //マテリアルファイルパス
 			isMaterial = true; //マテリアル存在フラグを立てる
-			//メッシュファイルによっては.mtlファイル名のみの記述の場合もあれば./から記述しているものもあるので対応
+			//マテリアルファイル名の記述に./から始めている場合はそれを削除する
 			int slashPos = splitData[1].find_first_of("/");
-			if (slashPos != std::string::npos) splitData[1].erase(0, slashPos - 1);
-			else splitData[1].insert(0, "/");
+			if (slashPos != std::string::npos) splitData[1].erase(0, slashPos + 1);
 
-			matPath = matPath + splitData[1];
+			pc.AddLeafPath(modelPath, materialPath, splitData[1].c_str()); //モデルファイルパスにマテリアルファイルパスを付加する
+			std::cout << materialPath << std::endl;
 		}
 		else if (splitData[0] == "usemtl") { //マテリアル名
 			OBJMaterialRef tmpMatRef;
 			for (int splitNum = 1; splitNum < splitData.size(); splitNum++) { //マテリアル名が空白込みで定義されている場合があるので対応
 				tmpMatRef.matName += splitData[splitNum];
 			}
-			int idx = findMaterialIndex(matRef, tmpMatRef.matName);
-			if (idx == -1) {	
-				tmpMatRef.idxOffset.push_back(idxOffset);
-				matRef.push_back(tmpMatRef);
-			}
-			else {
-				matRef[idx].idxOffset.push_back(idxOffset);
-			}
+			tmpMatRef.idxOffset = idxOffset;
+			matRef.push_back(tmpMatRef);
 		}
 		splitData.clear();
 	}
 	fclose(modelFp);
+	
+	//マテリアル適用数を決める
+	for (int i = 0; i < matRef.size() - 1; i++) {
+		matRef[i].idxNum = matRef[i + 1].idxOffset - matRef[i].idxOffset;
+
+		/*std::cout << matRef[i].matName << std::endl;
+		std::cout << matRef[i].idxOffset << std::endl;
+		std::cout << matRef[i].idxNum << std::endl;*/
+	}
+	matRef[matRef.size() - 1].idxNum = idxOffset - matRef[matRef.size() - 1].idxOffset;
+
+	/*std::cout << matRef[matRef.size() - 1].matName << std::endl;
+	std::cout << matRef[matRef.size() - 1].idxOffset << std::endl;
+	std::cout << matRef[matRef.size() - 1].idxNum << std::endl;*/
 
 	if (isMaterial) { //この後の処理はマテリアルファイルがあった場合にのみ行う
 		//ファイルロード
-		hr = checkPathLength(matPath.size());
-		if (FAILED(hr)) return S_FALSE;
 		FILE* matFp; //マテリアルファイル
-		matFp = fopen(matPath.c_str(), "r");
+		matFp = fopen(materialPath, "r");
 		if (matFp == NULL) {
-			fclose(matFp);
 			std::cout << "cannnot open material file\n";
 		}
 
-		std::cout << "Material File : [" << matPath << "]" << std::endl;
-		
+		//std::cout << materialPath << std::endl;
+
 		/*
 		マテリアルファイルは、newmtlから次の空行まで
 		*/
-		for (int matNum = 0; matNum < matRef.size(); matNum++) {
-			while (fgets(lineData, MAX_READ_LINEDATA, matFp) != NULL) { //メッシュファイルで宣言されていたマテリアルがマテリアルファイルにない可能性がある。その場合はこのループを通過することになる
-				OBJ_splitBlank(lineData, splitData);
-				if (splitData[0] == "newmtl") { //マテリアルファイルでのマテリアル宣言
-					std::string tmpName;
-					for (int splitNum = 1; splitNum < splitData.size(); splitNum++) {
-						tmpName += splitData[splitNum];
+		int materialNum = 0;
+		OBJMaterial tmpMat;
+		std::string tmpName;
+		while (fgets(lineData, MAX_READ_LINEDATA, matFp) != NULL) {
+			OBJ_splitBlank(lineData, splitData);
+			if (splitData[0] == "newmtl") { //マテリアルファイルでのマテリアル宣言
+				if (materialNum > 0) materials.push_back(tmpMat);
+				tmpMat.Init();
+				tmpName.clear();
+				for (int splitNum = 1; splitNum < splitData.size(); splitNum++) {
+					tmpName += splitData[splitNum];
+				}
+				tmpMat.materialName = tmpName;
+				//マテリアル参照データと実際のマテリアルの対応付けを行う
+				for (int i = 0; i < matRef.size(); i++) {
+					if (matRef[i].matName == tmpName) {
+						matRef[i].matID = materialNum;
 					}
+				}
+				materialNum++;
+			}
+			else {
+				if (splitData[0] == "Ka") { //アンビエント色
+					tmpMat.mcb.ambient = XMFLOAT4(std::stof(splitData[1]), std::stof(splitData[2]), std::stof(splitData[3]), 1.0f);
+				}
+				else if (splitData[0] == "Kd") { //ディフューズ色
+					tmpMat.mcb.diffuse = XMFLOAT4(std::stof(splitData[1]), std::stof(splitData[2]), std::stof(splitData[3]), 1.0f);
+				}
+				else if (splitData[0] == "Ks") { //スペキュラ色
+					tmpMat.mcb.specular = XMFLOAT4(std::stof(splitData[1]), std::stof(splitData[2]), std::stof(splitData[3]), 1.0f);
+				}
+				else if (splitData[0] == "Ns") { //スペキュラ指数
+					tmpMat.mcb.Nspecular = std::stof(splitData[1]);
+				}
 
-					if (matRef[matNum].matName == tmpName) { //マテリアル参照データに格納されているマテリアル名とnewmtlで宣言されているマテリアル名が一致した場合
-						matRef[matNum].existFlag = 1; //マテリアルがマテリアルファイル内で見つかった
 
-						OBJMaterial tmpMat;
-						fgets(lineData, MAX_READ_LINEDATA, matFp);
-						OBJ_splitBlank(lineData, splitData);
-						while (splitData[0] != "newmtl") { //つぎのnewmtl宣言まで
-							if (splitData[0] == "Ka") { //アンビエント色
-								tmpMat.mcb.ambient = XMFLOAT3(std::stof(splitData[1]), std::stof(splitData[2]), std::stof(splitData[3]));
-							}
-							else if (splitData[0] == "Kd") { //ディフューズ色
-								tmpMat.mcb.diffuse = XMFLOAT3(std::stof(splitData[1]), std::stof(splitData[2]), std::stof(splitData[3]));
-							}
-							else if (splitData[0] == "Ks") { //スペキュラ色
-								tmpMat.mcb.specular = XMFLOAT3(std::stof(splitData[1]), std::stof(splitData[2]), std::stof(splitData[3]));
-							}
-							else if (splitData[0] == "Ns") { //スペキュラ指数
-								tmpMat.mcb.Nspecular = std::stof(splitData[1]);
-							}
-							else if (splitData[0] == "map_Ka") { //アンビエントテクスチャ
-								tmpMat.ambTexPath = splitData[1];
-							}
-							else if (splitData[0] == "map_Kd") { //ディフューズテクスチャ
-								tmpMat.difTexPath = splitData[1];
-							}
-							else if (splitData[0] == "map_Ks") { //スペキュラテクスチャ
-								tmpMat.speTexPath = splitData[1];
-							}
-
-							//行を進めて分割
-							if (fgets(lineData, MAX_READ_LINEDATA, matFp) == NULL) break;
-							OBJ_splitBlank(lineData, splitData);
-						}
-						materials.push_back(tmpMat); //マテリアルデータの追加
-						rewind(matFp);
-						break;
+				//ファイルパスを適切な形に変換する必要あり
+				/*
+				1.まずモデルファイルディレクトリ名で検索
+				2.見つかった場合は、そのファイルディレクトリ以下のパスを取得し、modelPathに結合する
+				3.見つからない場合は、フォルダ分けされずに直接モデルファイル直下に置かれているとみなして、文字列をそのままmodelPathに結合する
+				*/
+				else if (splitData[0] == "map_Ka") { //アンビエントテクスチャ
+					std::string tmpMatPath;
+					for (int i = 1; i < splitData.size(); i++) { //今回の結合は空白を空白として扱う
+						tmpMatPath += splitData[i];
+						tmpMatPath += " ";
 					}
+					tmpMatPath.erase(tmpMatPath.end() - 1); //最後の空白は余計なので削除
+
+					char tmpStr[MAX_PATH_LENGTH];
+					pc.GetAfterPathFromDirectoryName(tmpMatPath.c_str(), tmpStr, modelDirName);
+					pc.AddLeafPath(modelPath, tmpMat.ambTexPath, tmpStr);
+				}
+				else if (splitData[0] == "map_Kd") { //ディフューズテクスチャ
+					std::string tmpMatPath;
+					for (int i = 1; i < splitData.size(); i++) { //今回の結合は空白を空白として扱う
+						tmpMatPath += splitData[i];
+						tmpMatPath += " ";
+					}
+					tmpMatPath.erase(tmpMatPath.end() - 1); //最後の空白は余計なので削除
+
+					char tmpStr[MAX_PATH_LENGTH];
+					pc.GetAfterPathFromDirectoryName(tmpMatPath.c_str(), tmpStr, modelDirName);
+					pc.AddLeafPath(modelPath, tmpMat.difTexPath, tmpStr);
+				}
+				else if (splitData[0] == "map_Ks") { //スペキュラテクスチャ
+					std::string tmpMatPath;
+					for (int i = 1; i < splitData.size(); i++) { //今回の結合は空白を空白として扱う
+						tmpMatPath += splitData[i];
+						tmpMatPath += " ";
+					}
+					tmpMatPath.erase(tmpMatPath.end() - 1); //最後の空白は余計なので削除
+					char tmpStr[MAX_PATH_LENGTH];
+
+					pc.GetAfterPathFromDirectoryName(tmpMatPath.c_str(), tmpStr, modelDirName);
+					pc.AddLeafPath(modelPath, tmpMat.speTexPath, tmpStr);
 				}
 			}
 		}
-		for (int i = 0; i < matRef.size(); i++) {
-			if (matRef[i].existFlag == 0) {
-				std::cout << "warning : no material : " << matRef[i].matName << std::endl;
-			}
-		}
+		materials.push_back(tmpMat);
+	
+		/*for (int i = 0; i < matRef.size(); i++) {
+			std::cout << matRef[i].matName << " " << matRef[i].matID << std::endl;
+		}*/
 
 		fclose(matFp);
 
 		/*for (int i = 0; i < materials.size(); i++) {
-			std::cout << matRef[i].matName << std::endl;
+			std::cout << materials[i].materialName << std::endl;
 			std::cout << "ambient : " << materials[i].mcb.ambient.x << " ";
 			std::cout << materials[i].mcb.ambient.y << " ";
 			std::cout << materials[i].mcb.ambient.z << std::endl;
@@ -317,7 +350,7 @@ HRESULT Object::OBJ_LoadModelData(std::string modelPath, ID3D12Device* device) {
 		indexNum += fd[i].vertexCnt;
 	}
 
-	std::cout << "vertex : " << vertices.size() << " / UV : " << vt.size() << " / normal : " << vn.size() << " / face : " << fd.size() << " / indices : " << indices.size() << " / idxOffset : " << idxOffset << "\n";
+	std::cout << "vertex : " << vertices.size() << " / UV : " << vt.size() << " / normal : " << vn.size() << " / face : " << fd.size() << " / indices : " << indices.size() << std::endl;
 
 	vectorRelease(v);
 	vectorRelease(vt);
@@ -408,12 +441,18 @@ HRESULT Object::OBJ_LoadModelData(std::string modelPath, ID3D12Device* device) {
 	for (int i = 0; i < materials.size(); i++) {
 		memcpy((matMap + i), &materials[i].mcb, sizeof(OBJMaterialCB));
 	}
-	for (int i = 0; i < 3; i++) {
+	/*for (int i = 0; i < materials.size(); i++) {
 		std::cout << &matMap[i].ambient.x << "/" << &matMap[i].ambient.y << "/" << &matMap[i].ambient.z << std::endl;
 		std::cout << &matMap[i].diffuse.x << "/" << &matMap[i].diffuse.y << "/" << &matMap[i].diffuse.z << std::endl;
 		std::cout << &matMap[i].specular.x << "/" << &matMap[i].specular.y << "/" << &matMap[i].specular.z << std::endl;
 		std::cout << &matMap[i].Nspecular << std::endl << std::endl;
-	}
+	}*/
+	/*for (int i = 0; i < materials.size(); i++) {
+		std::cout << matMap[i].ambient.x << "/" << matMap[i].ambient.y << "/" << matMap[i].ambient.z << std::endl;
+		std::cout << matMap[i].diffuse.x << "/" << matMap[i].diffuse.y << "/" << matMap[i].diffuse.z << std::endl;
+		std::cout << matMap[i].specular.x << "/" << matMap[i].specular.y << "/" << matMap[i].specular.z << std::endl;
+		std::cout << matMap[i].Nspecular << std::endl << std::endl;
+	}*/
 	materialBuffer->Unmap(0, nullptr);
 
 	/*-----マテリアル用ディスクリプタヒープの生成-----*/
@@ -440,7 +479,7 @@ HRESULT Object::OBJ_LoadModelData(std::string modelPath, ID3D12Device* device) {
 
 
 	std::cout << "Loading Model is finished(" << (clock() - loadTime) / 1000 << "sec)" << std::endl;
-
+	
 	std::cout << "-------------------------\n";
 
 	return S_OK;
@@ -505,6 +544,8 @@ int Object::findMaterialIndex(std::vector<OBJMaterialRef> mr, std::string materi
 
 	return -1; //まだ未参照のマテリアルである場合は-1を返す
 }
+
+
 
 template<typename T>
 void Object::vectorRelease(std::vector<T>& vec) {

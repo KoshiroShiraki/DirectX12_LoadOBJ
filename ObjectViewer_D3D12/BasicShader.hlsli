@@ -9,9 +9,9 @@ cbuffer cbuff0 : register(b0)
 
 cbuffer Material : register(b1)
 {
-	float3 ambient;
-	float3 diffuse;
-	float3 specular;
+	float4 ambient;
+	float4 diffuse;
+	float4 specular;
 	float Nspecular;
 };
 

@@ -16,7 +16,7 @@ HWND hwnd;
 //�G���g���|�C���g
 int main() {
 	HRESULT hr;
-
+	
 	/*-----�E�B���h�E����-----*/
 	hr = InitWindow();
 	if (FAILED(hr)) {
@@ -89,9 +89,19 @@ HRESULT InitWindow() {
 }
 
 
+/*
+キー入力はWindowProcで受け付ける
+*/
 LRESULT WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
-	if (msg == WM_DESTROY) {
+	TCHAR tcStr[128];
+
+	switch (msg) {
+	case WM_DESTROY:
 		PostQuitMessage(0);
+		return 0;
+	case WM_KEYDOWN:
+		return 0;
+	case WM_KEYUP:
 		return 0;
 	}
 	return DefWindowProc(hwnd, msg, wparam, lparam);

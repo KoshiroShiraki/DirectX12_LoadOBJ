@@ -9,12 +9,13 @@
 #include<iostream>
 #include"DirectXController.h"
 #include"ConstValue.h"
+#include"PathController.h"
 
 class Application {
 public:
 	/*-----メンバ変数-----*/
 	DirectXController DxCon;
-
+	
 	/*-----コンストラクタ/デストラクタ-----*/
 	Application();
 	~Application();
