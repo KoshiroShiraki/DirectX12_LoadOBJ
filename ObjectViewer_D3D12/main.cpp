@@ -5,35 +5,26 @@
 #include<iostream>
 #endif
 
-/*-----�v���g�^�C�v�錾-----*/
-HRESULT InitWindow();
+
+HRESULT InitWindow(Application &app);
 LRESULT WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
 
-/*-----�O���[�o���ϐ�------*/
-WNDCLASSEX wcx = {};
-HWND hwnd;
-
-//�G���g���|�C���g
 int main() {
 	HRESULT hr;
-	
-	/*-----�E�B���h�E����-----*/
-	hr = InitWindow();
+	Application app;
+	/*-----ウィンドウ生成-----*/
+	hr = InitWindow(app);
 	if (FAILED(hr)) {
 		std::cout << "Failed to InitWindow\n";
 		return 0;
 	}
 
-	/*-----�A�v���̍쐬-----*/
-	Application App;
+	/*-----アプリケーション初期化-----*/
+	app.Initialize(app.hwnd);
 
-	/*-----����������-----*/
-	App.Initialize(hwnd);
-
-	/*-----���b�Z�[�W���[�v(�Q�[�����[�v)-----*/
+	/*-----メッセージループ-----*/
 	MSG msg = {};
 	while (true) {
-		/*-----OS���b�Z�[�W����-----*/
 		if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
@@ -42,26 +33,26 @@ int main() {
 			break;
 		}
 
-		/*-----�Q�[�����[�v����-----*/
-		App.Update();
+		/*-----アプリケーション更新-----*/
+		app.Update();
 	}
 
 	//�E�B���h�E�N���X�̍폜
-	UnregisterClass(wcx.lpszClassName, wcx.hInstance);
+	UnregisterClass(app.wcx.lpszClassName, app.wcx.hInstance);
 
 	/*-----�I������-----*/
-	App.Terminate();
+	app.Terminate();
 
 	return 0;
 }
 
-HRESULT InitWindow() {
+HRESULT InitWindow(Application &app) {
 	//�E�B���h�E�N���X�̓o�^�Ɛ���
-	wcx.cbSize = sizeof(WNDCLASSEX);
-	wcx.lpfnWndProc = (WNDPROC)WindowProc;
-	wcx.lpszClassName = _T("DX12Sample");
-	wcx.hInstance = GetModuleHandle(0);
-	if (!RegisterClassEx(&wcx)) {
+	app.wcx.cbSize = sizeof(WNDCLASSEX);
+	app.wcx.lpfnWndProc = (WNDPROC)WindowProc;
+	app.wcx.lpszClassName = _T("DX12Sample");
+	app.wcx.hInstance = GetModuleHandle(0);
+	if (!RegisterClassEx(&app.wcx)) {
 		return S_FALSE;
 	}
 	//�E�B���h�E�T�C�Y�̐���
@@ -69,8 +60,8 @@ HRESULT InitWindow() {
 	AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, false);
 
 	//�E�B���h�E�̐���
-	hwnd = CreateWindow(
-		wcx.lpszClassName,
+	app.hwnd = CreateWindow(
+		app.wcx.lpszClassName,
 		_T("DX12Sample"),
 		WS_OVERLAPPEDWINDOW,
 		CW_USEDEFAULT,
@@ -79,12 +70,12 @@ HRESULT InitWindow() {
 		rc.bottom - rc.top,
 		nullptr,
 		nullptr,
-		wcx.hInstance,
+		app.wcx.hInstance,
 		nullptr
 	);
 
 	//�E�B���h�E�̕\��
-	ShowWindow(hwnd, SW_SHOW);
+	ShowWindow(app.hwnd, SW_SHOW);
 	return S_OK;
 }
 
