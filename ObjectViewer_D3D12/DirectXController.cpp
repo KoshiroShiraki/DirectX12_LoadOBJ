@@ -196,7 +196,7 @@ HRESULT DirectXController::CreateResources(Camera &camera) {
 #endif
 	/*-----OBJデータの読み込み-----*/
 	car.OBJ_LoadModelData("\\ObjectViewer_D3D12\\Model\\OBJ\\41-formula-1\\formula 1\\Formula 1 mesh.obj", device);
-	//car.OBJ_LoadModelData("ObjectViewer_D3D12\\Model/OBJ/jzb865er6v-IronMan/IronMan/IronMan.obj", device);
+	ironman.OBJ_LoadModelData("\\ObjectViewer_D3D12\\Model\\OBJ\\jzb865er6v-IronMan\\IronMan\\IronMan.obj", device);
 	//car.OBJ_LoadModelData("ObjectViewer_D3D12\\Model/OBJ/20-livingroom_obj/InteriorTest.obj", device);
 	
 	/*-----ConstantBufferの生成-----*/

@@ -15,6 +15,9 @@ void Camera::InitCamera(XMFLOAT3 apos, XMFLOAT3 atarget, XMFLOAT3 aup) {
 
 	verticalDir = 0.0f;
 
+	moveSpeed = 1.0f;
+	cameraSensitivity = 0.005f;
+
 	/*-----views—ñ‚Ì¶¬-----*/
 	viewMatrix = viewMatrixRotateY = XMMatrixLookAtLH(DirectX::XMLoadFloat3(&pos), DirectX::XMLoadFloat3(&target), DirectX::XMLoadFloat3(&up));
 }
@@ -27,6 +30,11 @@ void Camera::update(XMFLOAT3 addPos, XMFLOAT3 addRot, bool rotateFlag) {
 	//ˆÚ“®—Ê‚Ì³‹K‰»
 	float len = sqrtf(pow(addPos.x, 2) + pow(addPos.y, 2) + pow(addPos.z, 2));
 	if (len == 0) len = 1; //ˆÚ“®—ÊcurPos‚Ì‘å‚«‚³‚ª0‚Ìê‡
+
+	//SIMD‰‰Z‚Í‚Ü‚½¡“x...
+	addRot.x *= cameraSensitivity;
+	addRot.y *= cameraSensitivity;
+	addRot.z *= cameraSensitivity;
 
 	XMMATRIX moveMat = XMMatrixTranslation(addPos.x / len, addPos.y / len, addPos.z / len);
 	XMMATRIX rotateYMat = XMMatrixIdentity();

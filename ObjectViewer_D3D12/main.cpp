@@ -52,6 +52,7 @@ HRESULT InitWindow() {
 	app.wcx.cbSize = sizeof(WNDCLASSEX);
 	app.wcx.lpfnWndProc = (WNDPROC)WindowProc;
 	app.wcx.lpszClassName = _T("DX12Sample");
+	app.wcx.hCursor = LoadCursor(NULL, IDC_ARROW);
 	app.wcx.hInstance = GetModuleHandle(0);
 	if (!RegisterClassEx(&app.wcx)) {
 		return S_FALSE;
@@ -81,15 +82,19 @@ HRESULT InitWindow() {
 }
 
 
-/*
-キー入力はWindowProcで受け付ける
-*/
 LRESULT WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 	TCHAR tcStr[128];
-
+	HDC hdc;
 	switch (msg) {
 	case WM_DESTROY:
 		PostQuitMessage(0);
+		return 0;
+	case WM_KEYDOWN:
+		//デバイスコンテキスト取得
+		hdc = GetDC(hwnd);
+		//描画
+		TextOut(hdc, 0, 0, "テストですよ", sizeof("テストですよ"));
+		ReleaseDC(hwnd, hdc);
 		return 0;
 	}
 	return DefWindowProc(hwnd, msg, wparam, lparam);

@@ -101,6 +101,8 @@ public:
 	//マテリアルのディスクリプタヒープはオブジェクトクラスで管理する
 	ID3D12DescriptorHeap* materialDescHeap = nullptr; //マテリアル用ディスクリプタヒープ
 
+
+
 	/*-----コンストラクタ/デストラクタ-----*/
 	Object(); 
 	Object(std::string name);

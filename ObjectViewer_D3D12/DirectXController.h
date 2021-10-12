@@ -75,6 +75,7 @@ public:
 	ID3D12Resource* constBuffer = nullptr;
 
 	Object car;
+	Object ironman;
 
 	XMMATRIX worldMatrix;
 	XMMATRIX viewMatrix;

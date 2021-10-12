@@ -19,6 +19,8 @@ public:
 	XMFLOAT3 up;
 
 	float verticalDir; //垂直方向の向き
+	float moveSpeed;
+	float cameraSensitivity;
 	/*-----�R���X�g���N�^/�f�X�g���N�^-----*/
 	Camera();
 	~Camera();
