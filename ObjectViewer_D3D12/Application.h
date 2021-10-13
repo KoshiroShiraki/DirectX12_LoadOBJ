@@ -23,7 +23,9 @@ public:
 	Camera camera; //カメラ制御クラス
 
 	WNDCLASSEX wcx = {}; //ウィンドウレジスタークラス
-	HWND hwnd; //ウィンドウハンドル(ウィンドウ識別)
+	WNDCLASSEX wcx2 = {}; //テキストウィンドウレジスタークラス
+	HWND hwnd; //ウィンドウハンドル
+	HWND text_hwnd; //サブウィンドウハンドル
 
 	/*-----メンバ関数-----*/
 	void Initialize();

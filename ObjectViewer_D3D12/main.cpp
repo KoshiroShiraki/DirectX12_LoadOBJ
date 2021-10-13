@@ -8,6 +8,7 @@
 
 HRESULT InitWindow();
 LRESULT WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
+LRESULT text_WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
 
 Application app;
 
@@ -76,8 +77,35 @@ HRESULT InitWindow() {
 		nullptr
 	);
 
-	//ウィンドウ表示
 	ShowWindow(app.hwnd, SW_SHOW);
+
+	//ウィンドウクラスの登録
+	app.wcx2.cbSize = sizeof(WNDCLASSEX);
+	app.wcx2.lpfnWndProc = (WNDPROC)text_WindowProc;
+	app.wcx2.lpszClassName = _T("TextBox");
+	app.wcx2.hCursor = LoadCursor(NULL, IDC_ARROW);
+	app.wcx2.hInstance = GetModuleHandle(0);
+	if (!RegisterClassEx(&app.wcx2)) {
+		return S_FALSE;
+	}
+
+	//ウィンドウ生成(2)
+	app.text_hwnd = CreateWindow(
+		_T("TextBox"),
+		_T("TextBox"),
+		WS_OVERLAPPEDWINDOW,
+		20,
+		20,
+		300,
+		300,
+		nullptr,
+		nullptr,
+		app.wcx.hInstance,
+		NULL
+	);
+
+	ShowWindow(app.text_hwnd, SW_SHOW);
+
 	return S_OK;
 }
 
@@ -89,12 +117,16 @@ LRESULT WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 	case WM_DESTROY:
 		PostQuitMessage(0);
 		return 0;
-	case WM_KEYDOWN:
-		//デバイスコンテキスト取得
-		hdc = GetDC(hwnd);
-		//描画
-		TextOut(hdc, 0, 0, "テストですよ", sizeof("テストですよ"));
-		ReleaseDC(hwnd, hdc);
+	}
+	return DefWindowProc(hwnd, msg, wparam, lparam);
+}
+
+LRESULT text_WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
+	TCHAR tcStr[128];
+	HDC hdc;
+	switch (msg) {
+	case WM_DESTROY:
+		PostQuitMessage(0);
 		return 0;
 	}
 	return DefWindowProc(hwnd, msg, wparam, lparam);
