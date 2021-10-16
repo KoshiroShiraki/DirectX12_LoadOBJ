@@ -234,6 +234,9 @@ LRESULT editWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 					SendMessage(app.hEditTr[7], WM_SETTEXT, 0, (LPARAM)std::to_string(app.DxCon.objs[app.objIndex].transform.size.y).c_str());
 					SendMessage(app.hEditTr[8], WM_SETTEXT, 0, (LPARAM)std::to_string(app.DxCon.objs[app.objIndex].transform.size.z).c_str());
 				}
+				/*std::cout << app.DxCon.objs[app.objIndex].transform.position.x << " " << app.DxCon.objs[app.objIndex].transform.position.y << " " << app.DxCon.objs[app.objIndex].transform.position.z << " " << std::endl;
+				std::cout << app.DxCon.objs[app.objIndex].transform.rotation.x << " " << app.DxCon.objs[app.objIndex].transform.rotation.y << " "  << app.DxCon.objs[app.objIndex].transform.rotation.z << " " << std::endl;
+				std::cout << app.DxCon.objs[app.objIndex].transform.size.x << " " << app.DxCon.objs[app.objIndex].transform.size.y << " " << app.DxCon.objs[app.objIndex].transform.size.z << " " << std::endl;*/
 				app.isUpdateText = false;
 				return 0;
 			}
@@ -249,7 +252,6 @@ LRESULT editWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 					case EN_UPDATE: //エディットボックスの値が変わったとき
 						LPTSTR strData[3]; //エディットボックスの文字を取得する文字列
 						float data[3]; //エディットボックスには数字が入っているので、その数字をfloatに変換して格納する配列
-
 						switch (i / 3) { //値が 0 = position, 1 = rotation, 2 = size
 						case 0:
 							app.DxCon.UpdateObjTransform(app.hEditTr, 0, app.DxCon.objs[app.objIndex].transform.position);

@@ -135,14 +135,9 @@ void Application::Update() {
 	//カメラのアップデート
 	//WとSは左SHIFT入力時に前後ではなく上下方向への移動になる
 	camera.update(XMFLOAT3(input.inputKey[KEY_D] * (-1) + input.inputKey[KEY_A], input.inputKey[VK_LSHIFT] * (input.inputKey[KEY_W] * (-1) + input.inputKey[KEY_S]), (1 - input.inputKey[VK_LSHIFT]) * (input.inputKey[KEY_W] * (-1) + input.inputKey[KEY_S])), XMFLOAT3(0, input.dPos.x, input.dPos.y), input.inputKey[VK_RBUTTON]);
-	DxCon.UpdateViewMatrix(camera);
 
-	//ワールド行列のアップデート
-	for (int i = 0; i < DxCon.LoadedObjCount; i++) {
-		DxCon.UpdateWorldMatrix(DxCon.objs[i]);
-	}
 
-	if (FAILED(DxCon.Draw())) { //描画に失敗したらアプリ終了
+	if (FAILED(DxCon.Draw(camera))) { //描画に失敗したらアプリ終了
 		std::cout << "Failed to Update\n";
 		return;
 	}

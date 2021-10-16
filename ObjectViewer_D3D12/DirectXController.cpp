@@ -207,7 +207,7 @@ HRESULT DirectXController::CreateResources(Camera &camera) {
 	//ResourcDescの定義
 	D3D12_RESOURCE_DESC resDesc = {};
 	resDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-	resDesc.Width = sizeof(MatrixData);
+	resDesc.Width = sizeof(MatrixData) * MAX_OBJECT_COUNT;
 	resDesc.Height = 1;
 	resDesc.DepthOrArraySize = 1;
 	resDesc.MipLevels = 1;
@@ -234,21 +234,23 @@ HRESULT DirectXController::CreateResources(Camera &camera) {
 		std::cout << "Failed to Map constBuffer\n";
 		return hr;
 	}
-	mapMatrix->w = worldMatrix;
-	mapMatrix->v = camera.viewMatrix;
-	mapMatrix->p = projectionMatrix;
-	mapMatrix->eye = eye;
-	/*std::cout << &mapMatrix->w << std::endl;
-	std::cout << &mapMatrix->v << std::endl;
-	std::cout << &mapMatrix->p << std::endl;
-	std::cout << &mapMatrix->eye<< std::endl;
-
+	for (int i = 0; i < MAX_OBJECT_COUNT; i++) {
+		(mapMatrix + i)->w = worldMatrix;
+		(mapMatrix + i)->v = camera.viewMatrix;
+		(mapMatrix + i)->p = projectionMatrix;
+		(mapMatrix + i)->eye = eye;
+		/*std::cout << (mapMatrix + i)->w.r << std::endl;
+		std::cout << (mapMatrix + i)->v.r << std::endl;
+		std::cout << (mapMatrix + i)->p.r << std::endl;
+		std::cout << (mapMatrix + i)->eye.x << std::endl;*/
+	}
+	
 	/*-----ConstantBufferViewの生成-----*/
 	//DescriptorHeapの定義
 	D3D12_DESCRIPTOR_HEAP_DESC descHeapDesc = {};
 	descHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	descHeapDesc.NodeMask = 0;
-	descHeapDesc.NumDescriptors = 1;
+	descHeapDesc.NumDescriptors = MAX_OBJECT_COUNT;
 	descHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	//DescriptorHeapの生成
 	hr = device->CreateDescriptorHeap(&descHeapDesc, IID_PPV_ARGS(&basicDescHeap));
@@ -257,14 +259,17 @@ HRESULT DirectXController::CreateResources(Camera &camera) {
 		return hr;
 	}
 	//DescriptorHeapのハンドル位置取得
-	auto basicHeapHandle = basicDescHeap->GetCPUDescriptorHandleForHeapStart();
+	auto handleOffset = basicDescHeap->GetCPUDescriptorHandleForHeapStart();
 	//ConstantBufferViewの定義
 	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
 	cbvDesc.BufferLocation = constBuffer->GetGPUVirtualAddress();
-	cbvDesc.SizeInBytes = constBuffer->GetDesc().Width;
+	cbvDesc.SizeInBytes = sizeof(MatrixData);
 	//ConstantBufferViewの生成
-	device->CreateConstantBufferView(&cbvDesc, basicHeapHandle);
-
+	for (int i = 0; i < MAX_OBJECT_COUNT; i++) {
+		device->CreateConstantBufferView(&cbvDesc, handleOffset);
+		handleOffset.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		cbvDesc.BufferLocation += sizeof(MatrixData);
+	}
 	return S_OK;
 }
 
@@ -435,7 +440,7 @@ HRESULT DirectXController::SetGraphicsPipeLine() {
 	return S_OK;
 }
 
-HRESULT DirectXController::Draw() {
+HRESULT DirectXController::Draw(Camera &camera) {
 	//ViewPortの設定
 	D3D12_VIEWPORT vp = {};
 	vp.Width = window_Width;
@@ -479,7 +484,7 @@ HRESULT DirectXController::Draw() {
 	cmdList->ClearDepthStencilView(dsvH, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
 	//RenderTarget�̃N���A
-	float clearColor[] = { 0.6f,0.6f,0.6f,1.0f };
+	float clearColor[] = { 0.5f,0.5f,0.7f,1.0f };
 	cmdList->ClearRenderTargetView(rtvH, clearColor, 0, nullptr);
 
 	cmdList->RSSetViewports(1, &vp);
@@ -487,24 +492,29 @@ HRESULT DirectXController::Draw() {
 
 	cmdList->SetGraphicsRootSignature(rootsignature);
 
-	cmdList->SetDescriptorHeaps(1, &basicDescHeap);
+	D3D12_GPU_DESCRIPTOR_HANDLE heapHCBV, heapHMat;
 
-	auto heapHandle = basicDescHeap->GetGPUDescriptorHandleForHeapStart();
-	cmdList->SetGraphicsRootDescriptorTable(0, heapHandle);
+	heapHCBV = basicDescHeap->GetGPUDescriptorHandleForHeapStart();
 
 	if (LoadedObjCount > 0) { //オブジェクトの数だけループする
 		for (int objCnt = 0; objCnt < LoadedObjCount; objCnt++) {
-			UpdateWorldMatrix(objs[objCnt]); //ワールド行列をオブジェクトのものに変更する
+			D3D12_GPU_DESCRIPTOR_HANDLE tmpHandle;
+
+			UpdateWorldMatrix(objs[objCnt], objCnt); //ワールド行列をオブジェクトのものに変更する
+			UpdateViewMatrix(camera, objCnt); //ビューマトリックスの変更
+
+			cmdList->SetDescriptorHeaps(1, &basicDescHeap);
+			tmpHandle.ptr = heapHCBV.ptr + device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * objCnt;
+			cmdList->SetGraphicsRootDescriptorTable(0, tmpHandle);
 
 			cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 			cmdList->IASetVertexBuffers(0, 1, &objs[objCnt].vbView);
 			cmdList->IASetIndexBuffer(&objs[objCnt].ibView);
 
 			cmdList->SetDescriptorHeaps(1, &objs[objCnt].materialDescHeap);
-			heapHandle = objs[objCnt].materialDescHeap->GetGPUDescriptorHandleForHeapStart();
+			heapHMat = objs[objCnt].materialDescHeap->GetGPUDescriptorHandleForHeapStart();
 			for (int i = 0; i < objs[objCnt].matRef.size(); i++) {
-				D3D12_GPU_DESCRIPTOR_HANDLE tmpHandle;
-				tmpHandle.ptr = heapHandle.ptr + device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * objs[objCnt].matRef[i].matID;
+				tmpHandle.ptr = heapHMat.ptr + device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * objs[objCnt].matRef[i].matID;
 				cmdList->SetGraphicsRootDescriptorTable(1, tmpHandle);
 				cmdList->DrawIndexedInstanced(objs[objCnt].matRef[i].idxNum, 1, objs[objCnt].matRef[i].idxOffset, 0, 0);
 			}
@@ -570,7 +580,13 @@ HRESULT DirectXController::UpdateObjTransform(HWND hwnd[9], int offset, XMFLOAT3
 	for (int i = 0; i < 3; i++) {
 		LPTSTR dataTxt = (LPTSTR)calloc((GetWindowTextLength(hwnd[i + offset]) + 1), sizeof(TCHAR));
 		GetWindowText(hwnd[i + offset], dataTxt, GetWindowTextLength(hwnd[i + offset]) + 1);
-		data[i] = std::stof(dataTxt);
+		std::cout << dataTxt << std::endl;
+		try {
+			data[i] = std::stof(dataTxt);
+		}
+		catch (std::exception& e) {
+			data[i] = 0.0f;
+		}
 	}
 	objData.x = data[0];
 	objData.y = data[1];
@@ -579,20 +595,22 @@ HRESULT DirectXController::UpdateObjTransform(HWND hwnd[9], int offset, XMFLOAT3
 	return S_OK;
 }
 
-HRESULT DirectXController::UpdateWorldMatrix(Object& obj) {
+HRESULT DirectXController::UpdateWorldMatrix(Object& obj, int objIndex) {
 	XMMATRIX posMat = XMMatrixTranslation(obj.transform.position.x, obj.transform.position.y, obj.transform.position.z);
 	XMMATRIX rotMat = XMMatrixRotationRollPitchYaw(obj.transform.rotation.x, obj.transform.rotation.y, obj.transform.rotation.z);
 	XMMATRIX sizMat = XMMatrixScaling(obj.transform.size.x, obj.transform.size.y, obj.transform.size.z);
 
-	XMMATRIX worldMat = sizMat * rotMat * posMat;
+	XMMATRIX mat = XMMatrixIdentity();
 
-	mapMatrix->w = worldMat;
+	XMMATRIX worldMat = mat * sizMat * rotMat * posMat;
+
+	(mapMatrix + objIndex)->w = worldMat;
 
 	return S_OK;
 }
 
-HRESULT DirectXController::UpdateViewMatrix(Camera& camera) {
-	mapMatrix->v = camera.viewMatrix;
+HRESULT DirectXController::UpdateViewMatrix(Camera& camera, int objIndex) {
+	(mapMatrix + objIndex)->v = camera.viewMatrix;
 
 	return S_OK;
 }

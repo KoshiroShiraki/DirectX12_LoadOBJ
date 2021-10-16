@@ -93,10 +93,10 @@ public:
 	HRESULT CreateResources(Camera &camera);
 	HRESULT CreateShaders();
 	HRESULT SetGraphicsPipeLine();
-	HRESULT Draw();
+	HRESULT Draw(Camera& camera);
 	HRESULT UpdateObjTransform(HWND hwnd[9], int offset, XMFLOAT3& objData);
-	HRESULT UpdateWorldMatrix(Object &obj);
-	HRESULT UpdateViewMatrix(Camera &camera);
+	HRESULT UpdateWorldMatrix(Object& obj, int objIndex);
+	HRESULT UpdateViewMatrix(Camera &camera, int objIndex);
 	HRESULT LoadObject(const char* objName);
 	void EnableDebugLayer();
 	void Release();
