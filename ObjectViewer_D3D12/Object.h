@@ -28,6 +28,13 @@ using namespace DirectX;
 
 #pragma comment(lib,"DirectXTex.lib")
 
+/*-----オブジェクト構造体-----*/
+struct ObjTransrom {
+	XMFLOAT3 position; //位置
+	XMFLOAT3 size; //大きさ
+	XMFLOAT3 rotation; //回転
+};
+
 /*-----obj用構造体-----*/
 //頂点
 struct OBJVertex {
@@ -83,6 +90,8 @@ struct OBJFaceData {
 class Object {
 public:
 	/*-----メンバ変数-----*/
+	ObjTransrom transform; //オブジェクト位置姿勢大きさ
+
 	bool ObjectLoaded = false; //オブジェクトがロードされているかチェックする(多重ロードを防ぐ)
 
 	std::string objName; //オブジェクト名
@@ -92,19 +101,18 @@ public:
 	std::vector<OBJMaterialRef> matRef; //マテリアル参照
 	std::vector<unsigned> indices; //インデックス
 
+	/*-----DirectXに必要なデータ-----*/
 	ID3D12Resource* vertexBuffer = nullptr; //頂点バッファ
 	ID3D12Resource* indexBuffer = nullptr; //インデックスバッファ
 	ID3D12Resource* materialBuffer = nullptr; //マテリアルバッファ
 	D3D12_VERTEX_BUFFER_VIEW vbView = {}; //自身の持つバッファのビュー
 	D3D12_INDEX_BUFFER_VIEW ibView = {}; //自身の持つバッファのビュー
-
-	//マテリアルのディスクリプタヒープはオブジェクトクラスで管理する
 	ID3D12DescriptorHeap* materialDescHeap = nullptr; //マテリアル用ディスクリプタヒープ
-
+	/*-------------------------------*/
 
 
 	/*-----コンストラクタ/デストラクタ-----*/
-	Object(); 
+	Object();
 	Object(std::string name);
 	~Object();
 

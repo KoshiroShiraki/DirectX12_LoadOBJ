@@ -7,7 +7,7 @@ Output main(
 	Output output;
 	output.svpos = mul(mul(mul(p, v), w), pos);
 	normal.w = 0;
-	output.normal = mul(w, normal);
+	output.normal = normalize(mul(w, normal));
 	output.vnormal = mul(v, output.normal);
 	output.uv = uv;
 

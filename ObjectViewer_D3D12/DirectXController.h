@@ -14,6 +14,7 @@
 #include"ConstValue.h"
 #include"Object.h"
 #include"Camera.h"
+#include"PathController.h"
 
 #ifdef _DEBUG
 #include<iostream>
@@ -24,6 +25,8 @@
 #pragma comment(lib,"d3dcompiler.lib")
 #pragma comment(lib,"DirectXTex.lib")
 #pragma warning(disable: 4996)
+
+#define MAX_OBJECT_COUNT 20 //最大オブジェクト数
 
 //定数バッファ用
 struct MatrixData {
@@ -74,8 +77,8 @@ public:
 	//ID3D12Resource* indexBuffer = nullptr;
 	ID3D12Resource* constBuffer = nullptr;
 
-	Object car;
-	Object ironman;
+	Object objs[MAX_OBJECT_COUNT];
+	int LoadedObjCount = 0;
 
 	XMMATRIX worldMatrix;
 	XMMATRIX viewMatrix;
@@ -91,7 +94,10 @@ public:
 	HRESULT CreateShaders();
 	HRESULT SetGraphicsPipeLine();
 	HRESULT Draw();
-	HRESULT UpdateConstantBuffer(Camera &camera);
+	HRESULT UpdateObjTransform(HWND hwnd[9], int offset, XMFLOAT3& objData);
+	HRESULT UpdateWorldMatrix(Object &obj);
+	HRESULT UpdateViewMatrix(Camera &camera);
+	HRESULT LoadObject(const char* objName);
 	void EnableDebugLayer();
 	void Release();
 

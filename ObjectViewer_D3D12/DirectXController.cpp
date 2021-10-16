@@ -194,11 +194,6 @@ HRESULT DirectXController::CreateResources(Camera &camera) {
 #ifdef _DEBUG
 	EnableDebugLayer();
 #endif
-	/*-----OBJデータの読み込み-----*/
-	car.OBJ_LoadModelData("\\ObjectViewer_D3D12\\Model\\OBJ\\41-formula-1\\formula 1\\Formula 1 mesh.obj", device);
-	ironman.OBJ_LoadModelData("\\ObjectViewer_D3D12\\Model\\OBJ\\jzb865er6v-IronMan\\IronMan\\IronMan.obj", device);
-	//car.OBJ_LoadModelData("ObjectViewer_D3D12\\Model/OBJ/20-livingroom_obj/InteriorTest.obj", device);
-	
 	/*-----ConstantBufferの生成-----*/
 	//ワールド行列の生成
 	worldMatrix = DirectX::XMMatrixIdentity();
@@ -497,17 +492,23 @@ HRESULT DirectXController::Draw() {
 	auto heapHandle = basicDescHeap->GetGPUDescriptorHandleForHeapStart();
 	cmdList->SetGraphicsRootDescriptorTable(0, heapHandle);
 
-	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	cmdList->IASetVertexBuffers(0, 1, &car.vbView);
-	cmdList->IASetIndexBuffer(&car.ibView);
+	if (LoadedObjCount > 0) { //オブジェクトの数だけループする
+		for (int objCnt = 0; objCnt < LoadedObjCount; objCnt++) {
+			UpdateWorldMatrix(objs[objCnt]); //ワールド行列をオブジェクトのものに変更する
 
-	cmdList->SetDescriptorHeaps(1, &car.materialDescHeap);
-	heapHandle = car.materialDescHeap->GetGPUDescriptorHandleForHeapStart();
-	for (int i = 0; i < car.matRef.size(); i++) {
-		D3D12_GPU_DESCRIPTOR_HANDLE tmpHandle;
-		tmpHandle.ptr = heapHandle.ptr + device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * car.matRef[i].matID;
-		cmdList->SetGraphicsRootDescriptorTable(1, tmpHandle);
-		cmdList->DrawIndexedInstanced(car.matRef[i].idxNum, 1, car.matRef[i].idxOffset, 0, 0);
+			cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			cmdList->IASetVertexBuffers(0, 1, &objs[objCnt].vbView);
+			cmdList->IASetIndexBuffer(&objs[objCnt].ibView);
+
+			cmdList->SetDescriptorHeaps(1, &objs[objCnt].materialDescHeap);
+			heapHandle = objs[objCnt].materialDescHeap->GetGPUDescriptorHandleForHeapStart();
+			for (int i = 0; i < objs[objCnt].matRef.size(); i++) {
+				D3D12_GPU_DESCRIPTOR_HANDLE tmpHandle;
+				tmpHandle.ptr = heapHandle.ptr + device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * objs[objCnt].matRef[i].matID;
+				cmdList->SetGraphicsRootDescriptorTable(1, tmpHandle);
+				cmdList->DrawIndexedInstanced(objs[objCnt].matRef[i].idxNum, 1, objs[objCnt].matRef[i].idxOffset, 0, 0);
+			}
+		}
 	}
 
 	BarrierDesc.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
@@ -538,7 +539,59 @@ HRESULT DirectXController::Draw() {
 	return S_OK;
 }
 
-HRESULT DirectXController::UpdateConstantBuffer(Camera& camera) {
+HRESULT DirectXController::LoadObject(const char* objName) {
+	HRESULT hr;
+	PathController pc;
+
+	if (LoadedObjCount < MAX_OBJECT_COUNT) { //オブジェクト数が制限を超えていないか
+		hr = objs[LoadedObjCount].OBJ_LoadModelData(objName, device);
+		if (FAILED(hr)) { //オブジェクト生成に失敗したら
+			std::cout << "Cannot Create New Object" << std::endl;
+			objs[LoadedObjCount].Release(); //確保したメモリを開放する
+			return E_FAIL;
+		}
+		//読み込みが成功したらLoadedObjCountをインクリメント
+		char name[256];
+		pc.GetLeafDirectryName(objName, name, 256);
+		objs[LoadedObjCount].objName = name;
+		std::cout << objs[LoadedObjCount].objName << std::endl;
+		LoadedObjCount++;
+	}
+	else {
+		std::cout << "Cannot Load New Object any more" << std::endl;
+		return E_FAIL;
+	}
+
+	return S_OK;
+}
+
+HRESULT DirectXController::UpdateObjTransform(HWND hwnd[9], int offset, XMFLOAT3& objData) {
+	float data[3];
+	for (int i = 0; i < 3; i++) {
+		LPTSTR dataTxt = (LPTSTR)calloc((GetWindowTextLength(hwnd[i + offset]) + 1), sizeof(TCHAR));
+		GetWindowText(hwnd[i + offset], dataTxt, GetWindowTextLength(hwnd[i + offset]) + 1);
+		data[i] = std::stof(dataTxt);
+	}
+	objData.x = data[0];
+	objData.y = data[1];
+	objData.z = data[2];
+
+	return S_OK;
+}
+
+HRESULT DirectXController::UpdateWorldMatrix(Object& obj) {
+	XMMATRIX posMat = XMMatrixTranslation(obj.transform.position.x, obj.transform.position.y, obj.transform.position.z);
+	XMMATRIX rotMat = XMMatrixRotationRollPitchYaw(obj.transform.rotation.x, obj.transform.rotation.y, obj.transform.rotation.z);
+	XMMATRIX sizMat = XMMatrixScaling(obj.transform.size.x, obj.transform.size.y, obj.transform.size.z);
+
+	XMMATRIX worldMat = sizMat * rotMat * posMat;
+
+	mapMatrix->w = worldMat;
+
+	return S_OK;
+}
+
+HRESULT DirectXController::UpdateViewMatrix(Camera& camera) {
 	mapMatrix->v = camera.viewMatrix;
 
 	return S_OK;

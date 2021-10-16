@@ -2,7 +2,7 @@
 
 float4 main(Output input) : SV_TARGET
 {
-	float3 light = normalize(float3(1.0f,-1.0f,-10.0f));
+	float3 light = normalize(float3(1.0f,-1.0f,1.0f));
 	float ka = 1.0f;
 	float kb = 1.0f;
 	float kc = 1.0f;

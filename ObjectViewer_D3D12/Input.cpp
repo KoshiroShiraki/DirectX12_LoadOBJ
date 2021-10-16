@@ -16,6 +16,9 @@ void Input::update() {
 	inputKeyCheck(KEY_S);
 	inputKeyCheck(KEY_D);
 
+	//Eの入力チェック
+	inputKeyCheck(KEY_E);
+
 	//SHIFT(左)の入力チェック
 	inputKeyCheck(VK_LSHIFT);
 

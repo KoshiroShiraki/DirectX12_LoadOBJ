@@ -51,6 +51,11 @@ OBJMaterialRef::OBJMaterialRef() {
 }
 
 Object::Object() {
+	ObjectLoaded = false;
+
+	transform.position = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	transform.rotation = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	transform.size = XMFLOAT3(1.0f, 1.0f, 1.0f);
 
 }
 
@@ -66,14 +71,14 @@ HRESULT Object::OBJ_LoadModelData(std::string path, ID3D12Device* device) {
 	//オブジェクトの多重ロードを防ぐ
 	if (ObjectLoaded) {
 		std::cout << "Object File is already loaded\n";
-		return S_OK;
+		return E_FAIL;
 	}
 	ObjectLoaded = true;
 	std::cout << "\n-------------------------\n";
 	std::cout << "Loading Model(start)" << std::endl;
 
 	HRESULT hr;
-
+	
 	PathController pc; //パスコントローラ
 
 	char modelPath[MAX_PATH_LENGTH]; //モデルファイルパス
@@ -99,7 +104,7 @@ HRESULT Object::OBJ_LoadModelData(std::string path, ID3D12Device* device) {
 	modelFp = fopen(meshPath, "r");
 	if (modelFp == NULL) {
 		std::cout << "cannnot open model file\n";
-		return S_FALSE;
+		return E_FAIL;
 	}
  	
 	//一行ずつ読み込み、[v],[vt],[vn],[f]を取得
@@ -488,7 +493,7 @@ HRESULT Object::OBJ_LoadModelData(std::string path, ID3D12Device* device) {
 HRESULT Object::checkPathLength(size_t length) {
 	if (length > MAX_PATH_LENGTH) {
 		std::cout << "Error : Path is too long" << std::endl;
-		return S_FALSE;
+		return E_FAIL;
 	}
 	return S_OK;
 }
@@ -555,6 +560,8 @@ void Object::vectorRelease(std::vector<T>& vec) {
 }
 
 void Object::Release() {
+	ObjectLoaded = false;
+
 	vectorRelease(vertices);
 	vectorRelease(indices);
 	vectorRelease(materials);

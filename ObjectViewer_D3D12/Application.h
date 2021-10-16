@@ -22,14 +22,28 @@ public:
 	Input input; //インプット制御クラス
 	Camera camera; //カメラ制御クラス
 
-	WNDCLASSEX wcx = {}; //ウィンドウレジスタークラス
-	WNDCLASSEX wcx2 = {}; //テキストウィンドウレジスタークラス
 	HWND hwnd; //ウィンドウハンドル
+	HINSTANCE hInst; //インスタンスハンドル
 	HWND text_hwnd; //サブウィンドウハンドル
+	HWND hEdit; //エディットボックス
+	HWND hEditTr[9]; //トランスフォーム用エディットボックス
+	HWND hButton; //ボタン
+	HWND hDrop; //ドロップダウンボックス
+
+	bool isLoadObject; //オブジェクトロードフラグ
+	std::string LoadObjPath; //ロードオブジェクトのパス
+
+	bool isUpdateText = false;
+
+	std::vector<std::string> DefaultObjFilePaths;
+
+	int objIndex = -1; //エディタウィンドウからトランスフォームを変更する時に参照するインデックス(デフォルト値は-1)
 
 	/*-----メンバ関数-----*/
-	void Initialize();
+	HRESULT CreateMainWindow(WNDCLASSEX& wcx);
+	HRESULT CreateEditWindow(WNDCLASSEX& wcx);
+
+	HRESULT Initialize(WNDCLASSEX& mwcx, WNDCLASSEX& ewcx);
 	void Update();
 	void Terminate();
-
 };
