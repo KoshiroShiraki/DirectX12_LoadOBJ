@@ -10,14 +10,14 @@ Application::~Application() {
 }
 
 HRESULT Application::CreateMainWindow(WNDCLASSEX &wcx) {
-	//ウィンドウサイズ
+	//Make Window Size Using RECT(WindowsAPI)
 	RECT rc = { 0,0,window_Width,window_Height };
 	AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, false);
 
 	//ウィンドウ生成
-	hwnd = CreateWindow(
+	mhwnd = CreateWindow(
 		wcx.lpszClassName,
-		_T("DX12Sample"),
+		_T("Object_Viewer"),
 		WS_OVERLAPPEDWINDOW,
 		CW_USEDEFAULT,
 		CW_USEDEFAULT,
@@ -33,11 +33,12 @@ HRESULT Application::CreateMainWindow(WNDCLASSEX &wcx) {
 }
 
 HRESULT Application::CreateEditWindow(WNDCLASSEX &wcx) {
-	//テキストボックス配置用のウィンドウの生成
-	RECT rc = { 0,0,600,400 };
-	text_hwnd = CreateWindow(
+	//Make Window Size Using RECT(WindowsAPI)
+	RECT rc = { 0,0,600,200 };
+	AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, false);
+	ehwnd = CreateWindow(
 		wcx.lpszClassName,
-		_T("EditBox"),
+		_T("Editor"),
 		WS_OVERLAPPEDWINDOW,
 		CW_USEDEFAULT,
 		CW_USEDEFAULT,
@@ -55,29 +56,29 @@ HRESULT Application::CreateEditWindow(WNDCLASSEX &wcx) {
 HRESULT Application::Initialize(WNDCLASSEX &mwcx, WNDCLASSEX &ewcx) {
 	HRESULT hr;
 
-	/*-----表示可能なオブジェクトの列挙(\Model\OBJフォルダ直下にメッシュファイル、マテリアルファイルを直置きすること)-----*/
-	PathController pc; //パスコントローラ
+	/*-----make a List of the Objects which Loadable at Program start-----*/
+	PathController pc; //Controller for Path
 	char objsPath[MAX_PATH_LENGTH];
+
 	pc.AddLeafPath(pc.basePath, objsPath, "\\ObjectViewer_D3D12\\Model\\OBJ\\*.obj");
-	std::cout << objsPath << std::endl;
+
+	//How to serch Files from local directory→http://nienie.com/~masapico/api_FindFirstFile.html
 	HANDLE hFind;
 	WIN32_FIND_DATA fd;
-
-	//ファイル検索→http://nienie.com/~masapico/api_FindFirstFile.html
 	hFind = FindFirstFile(objsPath, &fd);
 	if (hFind == INVALID_HANDLE_VALUE) {
 	}
 	else {
 		char objFilesPath[MAX_PATH_LENGTH];
-		pc.AddLeafPath("\\ObjectViewer_D3D12\\Model\\OBJ\\", objFilesPath, fd.cFileName); //それに取得したファイル名をくっつける
-		DefaultObjFilePaths.push_back(objFilesPath); //プッシュ
+		pc.AddLeafPath("\\ObjectViewer_D3D12\\Model\\OBJ\\", objFilesPath, fd.cFileName); //Create Object File Path for program
+		DefaultObjFilePaths.push_back(objFilesPath);
 		while (FindNextFile(hFind, &fd)) {
 			pc.AddLeafPath("\\ObjectViewer_D3D12\\Model\\OBJ\\", objFilesPath, fd.cFileName);
-			DefaultObjFilePaths.push_back(objFilesPath); //プッシュ
+			DefaultObjFilePaths.push_back(objFilesPath);
 		}
 	}
 
-	/*-----ウィンドウ生成-----*/
+	/*-----Generate Window-----*/
 	hr = CreateMainWindow(mwcx);
 	if (FAILED(hr)) {
 		std::cout << "Failed to CreateMainWindow\n";
@@ -89,12 +90,12 @@ HRESULT Application::Initialize(WNDCLASSEX &mwcx, WNDCLASSEX &ewcx) {
 		return hr;
 	}
 
-	/*-----ウィンドウ表示-----*/
-	ShowWindow(hwnd, SW_SHOW);
-	ShowWindow(text_hwnd, SW_SHOW);
+	/*-----Display Window-----*/
+	ShowWindow(mhwnd, SW_SHOW);
+	ShowWindow(ehwnd, SW_SHOW);
 
-	/*-----DirectX初期化-----*/
-	if (FAILED(DxCon.InitD3D(hwnd))) {
+	/*-----Initialize DirectX-----*/
+	if (FAILED(DxCon.InitD3D(mhwnd))) {
 		std::cout << "Failed to InitD3D\n";
 		return E_FAIL;
 	}
@@ -114,36 +115,36 @@ HRESULT Application::Initialize(WNDCLASSEX &mwcx, WNDCLASSEX &ewcx) {
 }
 
 void Application::Update() {
-	//入力情報のアップデート
-	//入力を反映する更新処理は必ずこの後に持ってくる
+	//1.Update Input
 	input.update();
 
-	//オブジェクト読み込み
+	//2.Load New Object(if Application need to Load a New Object)
 	if (isLoadObject) {
 		std::cout << LoadObjPath << std::endl;
-		if ((SUCCEEDED(DxCon.LoadObject(LoadObjPath.c_str())))) { //読み込みに成功したら
-			//ドロップボックスに要素追加のメッセージを送る
+		if ((SUCCEEDED(DxCon.LoadObject(LoadObjPath.c_str())))) { //if suceeded to load New Object,
+			//Send Message to ComboBox2 to Add New Object
 			PathController pc;
 			char objName[256];
 			pc.GetLeafDirectryName(LoadObjPath.c_str(), objName, 256);
 
 			SendMessage(hDrop, CB_ADDSTRING, 0, (LPARAM)objName);
 		}
-		isLoadObject = false; //フラグを下げる
+		isLoadObject = false; //flag down
 	}
 
-	//カメラのアップデート
-	//WとSは左SHIFT入力時に前後ではなく上下方向への移動になる
+	//3.Update Camera
 	camera.update(XMFLOAT3(input.inputKey[KEY_D] * (-1) + input.inputKey[KEY_A], input.inputKey[VK_LSHIFT] * (input.inputKey[KEY_W] * (-1) + input.inputKey[KEY_S]), (1 - input.inputKey[VK_LSHIFT]) * (input.inputKey[KEY_W] * (-1) + input.inputKey[KEY_S])), XMFLOAT3(0, input.dPos.x, input.dPos.y), input.inputKey[VK_RBUTTON]);
 
+	//Update-Object-Parameter-Function is called from WindowProcedure when receive message, 
+	//and setting new parameter to Object is done in Draw function, so do not need to place Update-Object-Parameter-Function here.
 
-	if (FAILED(DxCon.Draw(camera))) { //描画に失敗したらアプリ終了
+	if (FAILED(DxCon.Draw(camera))) {
 		std::cout << "Failed to Update\n";
 		return;
 	}
 }
 
 void Application::Terminate() {
-	/*-----DirectXインターフェースの開放-----*/
+	/*-----Rerlease DirectX Interface-----*/
 	DxCon.Release();
 }

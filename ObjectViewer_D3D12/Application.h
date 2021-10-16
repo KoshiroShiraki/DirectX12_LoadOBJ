@@ -18,32 +18,32 @@ public:
 	~Application();
 
 public:
-	DirectXController DxCon; //DirectX制御クラス
-	Input input; //インプット制御クラス
-	Camera camera; //カメラ制御クラス
+	DirectXController DxCon;		//to Controll DirectX
+	Input input;				    //to Controll Input
+	Camera camera;					//to Controll Camera
 
-	HWND hwnd; //ウィンドウハンドル
-	HINSTANCE hInst; //インスタンスハンドル
-	HWND text_hwnd; //サブウィンドウハンドル
-	HWND hEdit; //エディットボックス
-	HWND hEditTr[9]; //トランスフォーム用エディットボックス
-	HWND hButton; //ボタン
-	HWND hDrop; //ドロップダウンボックス
+	HWND mhwnd;						//MainWindow Handle
+	HINSTANCE hInst;				//InstanceHandle
+	HWND ehwnd;						//EditWindow Handle
+	HWND hEdit;						//ComboBox Handle use for Select Object which you want to Load
+	HWND hEditTr[9];				//EditBox Handle use for Change Object's transform
+	HWND hButton;					//LoadButton Handle use for start Load new Object
+	HWND hDrop;						//ComboBox Handle use for Select Object which is exist in virtual World
 
-	bool isLoadObject; //オブジェクトロードフラグ
-	std::string LoadObjPath; //ロードオブジェクトのパス
+	bool isLoadObject;				//Check this Application is Loading new Object
+	std::string LoadObjPath;	    //ObjectPath 
 
-	bool isUpdateText = false;
+	bool isUpdateText = false;		//Check this Application is Changing EditBox's text
 
-	std::vector<std::string> DefaultObjFilePaths;
+	std::vector<std::string> DefaultObjFilePaths;	//Loadable Objects List.
 
-	int objIndex = -1; //エディタウィンドウからトランスフォームを変更する時に参照するインデックス(デフォルト値は-1)
+	int objIndex = -1;				//Index of Objects List. this will use for reference which Object's parameter should be changed.
 
-	/*-----メンバ関数-----*/
-	HRESULT CreateMainWindow(WNDCLASSEX& wcx);
-	HRESULT CreateEditWindow(WNDCLASSEX& wcx);
+public:
+	HRESULT CreateMainWindow(WNDCLASSEX& wcx);	//Create Main Window
+	HRESULT CreateEditWindow(WNDCLASSEX& wcx);	//Create Edit Window
 
-	HRESULT Initialize(WNDCLASSEX& mwcx, WNDCLASSEX& ewcx);
-	void Update();
-	void Terminate();
+	HRESULT Initialize(WNDCLASSEX& mwcx, WNDCLASSEX& ewcx);		//Initialize this Application
+	void Update();												//Update this Application
+	void Terminate();											//Terminate this Application
 };

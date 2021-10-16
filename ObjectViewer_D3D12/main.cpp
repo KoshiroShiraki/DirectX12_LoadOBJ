@@ -5,27 +5,29 @@
 #include<iostream>
 #endif
 
+/*this macro value is used for windowID*/
 #define EDIT_BOX_ID 1
 #define BUTTON_LOAD 2
 #define DROPDOWN_BOX 3
 #define EDIT_BOX_TRANSFORM 4//~12
+#define BUTTON_DELETE 13
 
-HRESULT CreateMainWindowRegister(WNDCLASSEX &wcx, HINSTANCE hInst); //メインウィンドウ用のウィンドウクラス登録
-HRESULT CreateEditWindowRegister(WNDCLASSEX& wcx, HINSTANCE hInst); //エディタウィンドウ用のウィンドウクラス登録
-LRESULT mainWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
-LRESULT editWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
+HRESULT CreateMainWindowRegister(WNDCLASSEX &wcx, HINSTANCE hInst); //Register Function for MainWindow
+HRESULT CreateEditWindowRegister(WNDCLASSEX& wcx, HINSTANCE hInst); //Register Function for EditWindow
+LRESULT mainWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam); //WindowProcedure for MainWindow
+LRESULT editWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam); //WindowProcedure for EditWindow
 
-Application app; //アプリケーション制御クラス
+Application app; //for Controll this Application
 
 int main() {
 	HRESULT hr;
 
-	app.hInst = GetModuleHandle(0); //現在のアプリケーションのインスタンスハンドルを取得する
+	app.hInst = GetModuleHandle(0); //get current Applicatoin's instance handle
 
-	WNDCLASSEX mwcx = {}; //メインウィンドウ用のウィンドウクラス
-	WNDCLASSEX ewcx = {}; //エディタウィンドウ用のウィンドウクラス
+	WNDCLASSEX mwcx = {}; //Register Class for MainWIndow
+	WNDCLASSEX ewcx = {}; //Register Class for EditWindow
 
-	/*-----ウィンドウクラス登録-----*/
+	/*-----Regist Window Class-----*/
 	hr = CreateMainWindowRegister(mwcx, app.hInst);
 	if (FAILED(hr)) {
 		std::cout << "Failed to MainWindowRegister\n";
@@ -37,10 +39,10 @@ int main() {
 		return 0;
 	}
 
-	/*-----アプリケーション初期化-----*/
+	/*-----Initialize Application-----*/
 	app.Initialize(mwcx, ewcx);
 
-	/*-----メッセージループ-----*/
+	/*-----Windows Message Loop-----*/
 	MSG msg = {};
 	while (true) {
 		if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
@@ -50,14 +52,14 @@ int main() {
 		if (msg.message == WM_QUIT) {
 			break;
 		}
-		/*-----アプリケーション更新-----*/
+		/*-----Update Application-----*/
 		app.Update();
 	}
 
 	UnregisterClass(mwcx.lpszClassName, app.hInst); 
 	UnregisterClass(ewcx.lpszClassName, app.hInst);
 
-	/*-----アプリケーション終了-----*/
+	/*-----Terminate Application-----*/
 	app.Terminate();
 
 	return 0;
@@ -93,7 +95,6 @@ HRESULT CreateEditWindowRegister(WNDCLASSEX& wcx, HINSTANCE hInst) {
 	return S_OK;
 }
 
-//メインウィンドウ(DirectXの描画先)用プロシージャ
 LRESULT mainWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 	switch (msg) {
 	case WM_DESTROY:
@@ -103,14 +104,19 @@ LRESULT mainWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 	return DefWindowProc(hwnd, msg, wparam, lparam);
 }
 
-//エディタウィンドウ(オブジェクトを読み込んだりオブジェクトの位置姿勢制御など)用プロシージャ
+/*
+EditWindow is used for...
+ -to Load New object
+ -to Select object present in VirtualWorld
+ -to Change object's transform(position, rotation, size) 
+*/
 LRESULT editWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
-	//ウィンドウの描画(テキストとか)に使うやつ
+	//these are used for painting  window
 	PAINTSTRUCT ps;
 	HDC hdc;
 
 	switch (msg) {
-	case WM_PAINT: //文字描画
+	case WM_PAINT: //Text Initialize
 		hdc = BeginPaint(hwnd, &ps);
 
 		TextOut(hdc, 5, 5, TEXT("FileName"), 8);
@@ -123,8 +129,12 @@ LRESULT editWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 		return 0;
 
 	case WM_CREATE:
-		//エディターウィンドウに必要なもろもろのセットアップ
-		/*-----エディットボックス-----*/
+		/*
+		this message is called only once when new window is created.
+		this is used to Generate and Initialize Window needed for EditWindow.
+		*/
+
+		/*-----ComboBox1 ... List Loadable Object-----*/
 		app.hEdit = CreateWindowEx(
 			0,
 			"COMBOBOX",
@@ -139,11 +149,12 @@ LRESULT editWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 			app.hInst,
 			NULL
 		);
+		//List Loadable Object when Program Started
 		for (int i = 0; i < app.DefaultObjFilePaths.size(); i++) {
 			SendMessage(app.hEdit, CB_ADDSTRING, 0, (LPARAM)app.DefaultObjFilePaths[i].c_str());
 		}
 
-		/*-----ロードボタン(これが押されたらオブジェクトロード開始)-----*/
+		/*-----LoadButton ... Load New Object which selected in ConboBox1-----*/
 		app.hButton = CreateWindowEx(0,
 			"BUTTON",
 			"Load",
@@ -158,7 +169,7 @@ LRESULT editWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 			NULL
 		);
 
-		/*-----ドロップダウンボックス(ロードされて表示されているオブジェクトの列挙)-----*/
+		/*-----ComboBox2 ... List Loaded Object-----*/
 		app.hDrop = CreateWindowEx(
 			0,
 			"COMBOBOX",
@@ -167,18 +178,21 @@ LRESULT editWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 			5,
 			70,
 			500,
-			500, //ドロップボックスを開いたときの領域込みで高さ指定しなくてはいけないらしい(→https://oshiete.goo.ne.jp/qa/7318205.html)
+			500,
 			hwnd,
 			(HMENU)DROPDOWN_BOX,
 			app.hInst,
 			nullptr
 		);
-		/*-----トランスフォーム用エディットボックス(位置姿勢を変える用)-----*/
+		/*-----EditBox ... Change Object's transform(position, rotation, size)-----*/
 		/*
-		識別ID
-		4  5  6
-		7  8  9
-		10 11 12
+		Create 9 Edit Box
+		--------------------------------
+		ID
+		4  5  6  ... pos.x, pos.y, pos.z
+		7  8  9  ... rot.x, rot.y, rot.z
+		10 11 12 ... siz.x, siz.y, siz.z
+		--------------------------------
 		*/
 		for (int i = 0; i < 9; i++) {
 			app.hEditTr[i] = CreateWindowEx(
@@ -199,29 +213,33 @@ LRESULT editWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 		return 0;
 
 	case WM_COMMAND:
+		/*
+		this message is called when something happened in Window.(e.g. User's Mouse Cursel clicked window)
+		WPARAM wparam is 32-bit variable, we can get WindowID from Low 16-bit and can get Message from High 16-bit.
+		*/
 		switch (LOWORD(wparam)) {
-			//ボタンが押されたときの処理
+		case BUTTON_LOAD: //LoadButton
+			if (!app.isLoadObject) { //Check this App is not Loading new Object.
 
-		case BUTTON_LOAD: //ロードボタン
-			if (!app.isLoadObject) { //オブジェクトのロードが始まると終了までプログラムが占有されるのでほぼ心配はないが、念のためロードフラグが立っていた場合には押しても何も起こらないようにしておく
-
-				 //テキストボックス内のテキストを取得(オブジェクトのファイル名)
+				 //Get the Text from ComboBox(this text is Object File Path)
 				LPTSTR objPath = (LPTSTR)calloc((GetWindowTextLength(app.hEdit) + 1), sizeof(TCHAR));
 				GetWindowText(app.hEdit, objPath, GetWindowTextLength(app.hEdit) + 1);
 
-				app.LoadObjPath = objPath; //読み込むオブジェクトパスを設定して
-				app.isLoadObject = true; //オブジェクトのロードを開始する(次のアプリけーションフレーム処理前にロードが行われる)
+				app.LoadObjPath = objPath; //Set Object File path,
+				app.isLoadObject = true; //and Start Loading Object
 			}
 			return 0;
 
-		case DROPDOWN_BOX: //オブジェクト選択ドロップダウンボックス
+		case DROPDOWN_BOX: //ComboBox2
 			switch (HIWORD(wparam)) {
-			case CBN_SELCHANGE: //項目が選択されたとき
-				//選択された項目のインデックス番号はそのまま対応するオブジェクト配列のインデックス番号なので
-				//インデックス番号を取得しそのオブジェクトのposition,rotation,sizeを取得しエディットボックスにセットする
-				//ポジションの設定
-				//ここでWM_SETTEXTメッセージを送ると同時にエディットウィンドウでES_UPDATEメッセージも受信してしまうので、フラグを管理しすべてのテキストのセットが終わるまでフラグを下ろさない
-				app.isUpdateText = true;
+			case CBN_SELCHANGE: //when user select Object from Objects-List
+				/*
+				Return value from SendMessage(hwnd, CB_GETCURSEL, 0, 0) is Index number of Objects List.
+				use this index to get Object's transform Parameter.
+				*/
+				app.isUpdateText = true; 
+				//This Application is Get new Object's parameters when EditBox updated, but this process is not Updating Parameters.(if update parameters in this process, this program crash)
+				//not to update Parameters, using flag
 				{
 					app.objIndex = SendMessage(app.hDrop, CB_GETCURSEL, 0, 0);
 					SendMessage(app.hEditTr[0], WM_SETTEXT, 0, (LPARAM)std::to_string(app.DxCon.objs[app.objIndex].transform.position.x).c_str());
@@ -234,25 +252,22 @@ LRESULT editWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 					SendMessage(app.hEditTr[7], WM_SETTEXT, 0, (LPARAM)std::to_string(app.DxCon.objs[app.objIndex].transform.size.y).c_str());
 					SendMessage(app.hEditTr[8], WM_SETTEXT, 0, (LPARAM)std::to_string(app.DxCon.objs[app.objIndex].transform.size.z).c_str());
 				}
-				/*std::cout << app.DxCon.objs[app.objIndex].transform.position.x << " " << app.DxCon.objs[app.objIndex].transform.position.y << " " << app.DxCon.objs[app.objIndex].transform.position.z << " " << std::endl;
-				std::cout << app.DxCon.objs[app.objIndex].transform.rotation.x << " " << app.DxCon.objs[app.objIndex].transform.rotation.y << " "  << app.DxCon.objs[app.objIndex].transform.rotation.z << " " << std::endl;
-				std::cout << app.DxCon.objs[app.objIndex].transform.size.x << " " << app.DxCon.objs[app.objIndex].transform.size.y << " " << app.DxCon.objs[app.objIndex].transform.size.z << " " << std::endl;*/
 				app.isUpdateText = false;
 				return 0;
 			}
 			return 0;
 		}
 
-		//トランスフォーム用エディットボックスのメッセージ受信
-		if (app.objIndex != -1 && !app.isUpdateText) {
+		if (app.objIndex != -1 && !app.isUpdateText) { //EditBox
 			for (int i = 0; i < 9; i++) {
-				int editNo = EDIT_BOX_TRANSFORM + i;
+				int editNo = EDIT_BOX_TRANSFORM + i; //check EditBox message(from Edit_BOX_TRANSFORM = 4 to 12)
 				if (LOWORD(wparam) == editNo) {
 					switch (HIWORD(wparam)) {
-					case EN_UPDATE: //エディットボックスの値が変わったとき
-						LPTSTR strData[3]; //エディットボックスの文字を取得する文字列
-						float data[3]; //エディットボックスには数字が入っているので、その数字をfloatに変換して格納する配列
-						switch (i / 3) { //値が 0 = position, 1 = rotation, 2 = size
+						//Object' transform is 3 parameters makes a set, so this process 3 params at one loop
+					case EN_UPDATE: //if EditBox's text change
+						LPTSTR strData[3]; //string variable to get EditBox's text
+						float data[3]; //EditBox's text must be Number.(if not so, a parameter will set 0.0f)
+						switch (i / 3) { //i = 0~2 is pos, i = 3=5 is rot, i = 6~8 is siz.
 						case 0:
 							app.DxCon.UpdateObjTransform(app.hEditTr, 0, app.DxCon.objs[app.objIndex].transform.position);
 							return 0;
