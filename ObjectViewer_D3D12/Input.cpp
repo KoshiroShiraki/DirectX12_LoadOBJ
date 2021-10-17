@@ -1,7 +1,6 @@
 #include"Input.h"
 
 Input::Input() {
-	//キー入力用配列の中身を0にする
 	ZeroMemory(inputKey, sizeof(inputKey));
 }
 
@@ -10,23 +9,20 @@ Input::~Input() {
 }
 
 void Input::update() {
-	//WASDの入力チェック
+	//Check WASD Input
 	inputKeyCheck(KEY_W);
 	inputKeyCheck(KEY_A);
 	inputKeyCheck(KEY_S);
 	inputKeyCheck(KEY_D);
 
-	//Eの入力チェック
-	inputKeyCheck(KEY_E);
-
-	//SHIFT(左)の入力チェック
+	//Check LeftShift Input
 	inputKeyCheck(VK_LSHIFT);
 
-	//マウスの入力チェック
+	//Check Mouse Input
 	inputKeyCheck(VK_LBUTTON);
 	inputKeyCheck(VK_RBUTTON);
 
-	//マウスの移動量取得
+	//get Mouse movement value
 	startPos = endPos;
 	GetCursorPos(&endPos);
 	dPos.x = endPos.x - startPos.x;
@@ -38,8 +34,4 @@ void Input::inputKeyCheck(WPARAM param) {
 		inputKey[param] = 0x01;
 	}
 	else inputKey[param] = 0x00;
-}
-
-void Input::MouseLeftButtonDown(bool flag) {
-	cameraRotateEnable = flag;
 }

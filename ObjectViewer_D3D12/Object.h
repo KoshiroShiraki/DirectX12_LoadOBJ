@@ -1,15 +1,4 @@
-﻿/*
-☆オブジェクト管理クラス
-
-設計方針
-・ID3D12ResourceはObjectクラスで管理
-・DirectXControllerクラスで単一のViewを管理し、描画のたびにBufferLocationとWidthを書き換える
-
-PMDモデル読み込みは以下の書籍を模倣
-川野 竜一.DirectX 12の魔導書 3Dレンダリングの基礎からMMDモデルを踊らせるまで.株式会社翔泳社.Kindle 版.
-*/
-
-#pragma once
+﻿#pragma once
 #include<DirectXMath.h>
 #include<DirectXTex.h>
 #include<d3d12.h>
@@ -19,7 +8,6 @@ PMDモデル読み込みは以下の書籍を模倣
 #include<iostream>
 #include<fstream>
 #include<time.h>
-#include"ConstValue.h"
 #include"PathController.h"
 using namespace DirectX;
 
@@ -28,57 +16,63 @@ using namespace DirectX;
 
 #pragma comment(lib,"DirectXTex.lib")
 
-/*-----オブジェクト構造体-----*/
+/*
+this programu is load "wavefront OBJ(.obj)".
+file format reference -> https://ja.wikipedia.org/wiki/Wavefront_.obj%E3%83%95%E3%82%A1%E3%82%A4%E3%83%AB (Caution : this is not official)
+*/
+
 struct ObjTransrom {
-	XMFLOAT3 position; //位置
-	XMFLOAT3 size; //大きさ
-	XMFLOAT3 rotation; //回転
+	XMFLOAT3 position;
+	XMFLOAT3 rotation;
+	XMFLOAT3 size;
 };
 
-/*-----obj用構造体-----*/
-//頂点
+//use for shader resources
 struct OBJVertex {
-	XMFLOAT3 pos; //頂点座標
-	XMFLOAT3 normal; //法線ベクトル
-	XMFLOAT2 uv; //UV座標
+	XMFLOAT3 pos;
+	XMFLOAT3 normal;
+	XMFLOAT2 uv;
 };
-//マテリアル参照データ。GPUにdraw命令を送る際にこの構造体データをもとにマテリアルを切り替える
+
+//use for change Descriptor in Draw function
 struct OBJMaterialRef {
-	std::string matName; //マテリアル名
+	std::string matName;
 
-	int matID; //マテリアルID
+	int matID;
 
-	int idxOffset; //マテリアル適用開始位置
-	int idxNum;; //マテリアル適用数
+	int idxOffset; //material start Posiiton
+	int idxNum; //Apllying material Count
 
 	OBJMaterialRef();
 };
-//コンスタントバッファとしてシェーダに送るマテリアルデータ
+
+//use for shader resources
 struct OBJMaterialCB {
-	XMFLOAT4 ambient; //環境反射色
-	XMFLOAT4 diffuse; //拡散反射色
-	XMFLOAT4 specular; //鏡面反射色
-	float Nspecular; //鏡面反射指数
+	XMFLOAT4 ambient;
+	XMFLOAT4 diffuse;
+	XMFLOAT4 specular;
+	float Nspecular;
 
 	char padding[204];
 };
-//マテリアル
+
 struct OBJMaterial {
-	OBJMaterialCB mcb; //シェーダに送るデータ
+	OBJMaterialCB mcb;
 
 	std::string materialName;
 
-	char ambTexPath[MAX_PATH_LENGTH]; //アンビエントテクスチャパス
-	char difTexPath[MAX_PATH_LENGTH]; //ディフューズテクスチャパス
-	char speTexPath[MAX_PATH_LENGTH]; //スペキュラテクスチャパス
+	char ambTexPath[MAX_PATH_LENGTH];
+	char difTexPath[MAX_PATH_LENGTH];
+	char speTexPath[MAX_PATH_LENGTH];
 
 	OBJMaterial();
 	void Init();
 };
 
+//use for Analyze .obj file's FaceData
 struct OBJFaceData {
-	int vertexCnt; //面を構成する頂点数
-	int** dataIndex; //各データのインデックス
+	int vertexCnt;
+	int** dataIndex;
 
 	OBJFaceData(int cnt);
 
@@ -89,44 +83,40 @@ struct OBJFaceData {
 
 class Object {
 public:
-	/*-----メンバ変数-----*/
-	ObjTransrom transform; //オブジェクト位置姿勢大きさ
-
-	bool ObjectLoaded = false; //オブジェクトがロードされているかチェックする(多重ロードを防ぐ)
-
-	std::string objName; //オブジェクト名
-
-	std::vector<OBJVertex> vertices; //.obj頂点データ
-	std::vector<OBJMaterial> materials; //マテリアル
-	std::vector<OBJMaterialRef> matRef; //マテリアル参照
-	std::vector<unsigned> indices; //インデックス
-
-	/*-----DirectXに必要なデータ-----*/
-	ID3D12Resource* vertexBuffer = nullptr; //頂点バッファ
-	ID3D12Resource* indexBuffer = nullptr; //インデックスバッファ
-	ID3D12Resource* materialBuffer = nullptr; //マテリアルバッファ
-	D3D12_VERTEX_BUFFER_VIEW vbView = {}; //自身の持つバッファのビュー
-	D3D12_INDEX_BUFFER_VIEW ibView = {}; //自身の持つバッファのビュー
-	ID3D12DescriptorHeap* materialDescHeap = nullptr; //マテリアル用ディスクリプタヒープ
-	/*-------------------------------*/
-
-
-	/*-----コンストラクタ/デストラクタ-----*/
 	Object();
 	Object(std::string name);
 	~Object();
 
-	/*-----メンバ関数-----*/
-	HRESULT OBJ_LoadModelData(std::string path, ID3D12Device* device); //OBJモデル読み込み
-	/*
-	以下の2つに関しては、膨大に繰り返される処理であるため極力if分岐処理を減らすために別々の関数にする
-	*/
+	ObjTransrom transform;
 
-	HRESULT checkPathLength(size_t length); //パスの長さ検証。エラーなら1、それ以外は0
-	void OBJ_splitBlank(std::string str, std::vector<std::string>& data); //空白で分割, dataは分割後のデータ格納用配列(可変長にしたのは配列サイズが一定にならないから)
-	void OBJ_splitSlash(std::string str, int* data); //スラッシュで分割 dataは分割後のデータ格納用配列(ポインタ渡しなのは固定長配列だから)
+	bool ObjectLoaded = false;	//if this classObject already loaded ObjectData, never load more ObjectData
+
+	std::string objName;
+
+	/*
+	these vector used to get data from .obj file.
+	and these vector also used to create Buffers.
+	*/
+	std::vector<OBJVertex> vertices;
+	std::vector<OBJMaterial> materials;
+	std::vector<OBJMaterialRef> matRef;
+	std::vector<unsigned> indices;
+
+	/*-----Use for DirectX Drawing-----*/
+	ID3D12Resource* vertexBuffer = nullptr;
+	ID3D12Resource* indexBuffer = nullptr;
+	ID3D12Resource* materialBuffer = nullptr;
+	D3D12_VERTEX_BUFFER_VIEW vbView = {};
+	D3D12_INDEX_BUFFER_VIEW ibView = {};
+	ID3D12DescriptorHeap* materialDescHeap = nullptr;
+	/*--------------------------------*/
+
+	HRESULT OBJ_LoadModelData(std::string path, ID3D12Device* device);
+	HRESULT checkPathLength(size_t length);
+	void OBJ_splitBlank(std::string str, std::vector<std::string>& data);
+	void OBJ_splitSlash(std::string str, int* data);
 	int findMaterialIndex(std::vector<OBJMaterialRef> mr, std::string material);
 	template<typename T>
-	void vectorRelease(std::vector<T>& vec); //vector解放関数
-	void Release(); //インスタンス解放関数
+	void vectorRelease(std::vector<T>& vec);
+	void Release();
 };

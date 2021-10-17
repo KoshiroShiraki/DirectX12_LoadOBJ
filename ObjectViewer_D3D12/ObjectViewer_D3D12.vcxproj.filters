@@ -38,9 +38,6 @@
     <ClInclude Include="Camera.h">
       <Filter>ヘッダーファイル</Filter>
     </ClInclude>
-    <ClInclude Include="ConstValue.h">
-      <Filter>ヘッダーファイル</Filter>
-    </ClInclude>
     <ClInclude Include="DirectXController.h">
       <Filter>ヘッダーファイル</Filter>
     </ClInclude>
@@ -51,6 +48,9 @@
       <Filter>ヘッダーファイル</Filter>
     </ClInclude>
     <ClInclude Include="Object.h">
+      <Filter>ヘッダーファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="ConstValue.h">
       <Filter>ヘッダーファイル</Filter>
     </ClInclude>
   </ItemGroup>

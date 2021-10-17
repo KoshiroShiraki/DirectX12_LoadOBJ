@@ -135,8 +135,8 @@ void Application::Update() {
 	//3.Update Camera
 	camera.update(XMFLOAT3(input.inputKey[KEY_D] * (-1) + input.inputKey[KEY_A], input.inputKey[VK_LSHIFT] * (input.inputKey[KEY_W] * (-1) + input.inputKey[KEY_S]), (1 - input.inputKey[VK_LSHIFT]) * (input.inputKey[KEY_W] * (-1) + input.inputKey[KEY_S])), XMFLOAT3(0, input.dPos.x, input.dPos.y), input.inputKey[VK_RBUTTON]);
 
-	//Update-Object-Parameter-Function is called from WindowProcedure when receive message, 
-	//and setting new parameter to Object is done in Draw function, so do not need to place Update-Object-Parameter-Function here.
+	//Update Object-Parameter Function is called from WindowProcedure when receive message, 
+	//and setting new parameter to Object is done in Draw function, so do not need to place Update Object-Parameter Function here.
 
 	if (FAILED(DxCon.Draw(camera))) {
 		std::cout << "Failed to Update\n";

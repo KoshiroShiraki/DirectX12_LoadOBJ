@@ -3,7 +3,6 @@
 
 OBJFaceData::OBJFaceData(int cnt) {
 	vertexCnt = cnt;
-	//面を構成する頂点数 * 3個の二重配列を用意する
 	dataIndex = (int**)malloc(sizeof(int*) * cnt);
 	for (int i = 0; i < cnt; i++) {
 		dataIndex[i] = (int*)malloc(sizeof(int) * 3);
@@ -13,16 +12,15 @@ OBJFaceData::OBJFaceData(int cnt) {
 OBJFaceData::~OBJFaceData() {
 	for (int i = 0; i < vertexCnt - 1; i++) {
 		if (dataIndex[i] != NULL) free(dataIndex[i]);
-		dataIndex[i] = NULL; //二重解放対策
+		dataIndex[i] = NULL;
 	}
 	if (dataIndex != NULL) free(dataIndex);
-	dataIndex = NULL; //二重解放対策
+	dataIndex = NULL;
 }
 
 OBJFaceData::OBJFaceData(const OBJFaceData& fd) {
 	this->vertexCnt = fd.vertexCnt;
 
-	//ちゃんとコピーはコピーで別のメモリを確保してもらわないと困る
 	this->dataIndex = (int**)malloc(sizeof(int*) * this->vertexCnt);
 	for (int i = 0; i < this->vertexCnt; i++) {
 		this->dataIndex[i] = (int*)malloc(sizeof(int) * 3);
@@ -68,8 +66,7 @@ Object::~Object() {
 }
 
 HRESULT Object::OBJ_LoadModelData(std::string path, ID3D12Device* device) {
-	//オブジェクトの多重ロードを防ぐ
-	if (ObjectLoaded) {
+	if (ObjectLoaded) { //Check this classObject has already loaded ObjectData
 		std::cout << "Object File is already loaded\n";
 		return E_FAIL;
 	}
@@ -79,97 +76,98 @@ HRESULT Object::OBJ_LoadModelData(std::string path, ID3D12Device* device) {
 
 	HRESULT hr;
 	
-	PathController pc; //パスコントローラ
+	PathController pc; //use for controll path
 
-	char modelPath[MAX_PATH_LENGTH]; //モデルファイルパス
-	char meshPath[MAX_PATH_LENGTH]; //メッシュファイルパス
-	char materialPath[MAX_PATH_LENGTH]; //マテリアルファイルパス
-	char modelDirName[64]; //モデルファイル名(メッシュファイルパス, テクスチャファイルパスの生成に使う)
+	/*
+	modelPath = ~\ObjectViewer\ObjectViewer_D3D12\Model\OBJ\---
+	meshPath = ~\ObjectViewer\ObjectViewer_D3D12\Model\OBJ\---\***.obj
+	materialPath = ~\ObjectViewer\ObjectViewer_D3D12\Model\OBJ\---\***.mtl
+	modelDirName = ---
+	*/
+	char modelPath[MAX_PATH_LENGTH];
+	char meshPath[MAX_PATH_LENGTH];
+	char materialPath[MAX_PATH_LENGTH];
+	char modelDirName[64];
 
-	//メッシュファイルパスの生成
+	//Create Mesh File Path
 	pc.CreatePath(path.c_str(), meshPath);
-	//モデルファイルのパスの生成(メッシュファイルパスの親ディレクトリがモデルファイルなので、メッシュファイルパスからメッシュファイル名.拡張子を削除する)
+	//Create Model Folder Path
 	pc.RemoveLeafPath(meshPath, modelPath);
-	//モデルファイル名の取得
+	//Get Model Folder name
 	pc.GetLeafDirectryName(modelPath, modelDirName, 64);
 
-	/*std::cout << modelPath << std::endl;
-	std::cout << meshPath << std::endl;
-	std::cout << modelDirName << std::endl;*/
+	float loadTime = clock(); //measure loading time
 
-	float loadTime = clock(); //ロード開始時間を取得
-
-	//ファイルロード
-	FILE* modelFp; //モデルファイル
+	/*-----Load Model File-----*/
+	FILE* modelFp;
 	modelFp = fopen(meshPath, "r");
 	if (modelFp == NULL) {
 		std::cout << "cannnot open model file\n";
 		return E_FAIL;
 	}
  	
-	//一行ずつ読み込み、[v],[vt],[vn],[f]を取得
-	std::vector<XMFLOAT3> v; //頂点座標
-	std::vector<XMFLOAT2> vt; //テクスチャ座標
-	std::vector<XMFLOAT3> vn; //法線情報
-	std::vector<OBJFaceData> fd; //面データ
+	std::vector<XMFLOAT3> v; //vertex
+	std::vector<XMFLOAT2> vt; //UV
+	std::vector<XMFLOAT3> vn; //normal
+	std::vector<OBJFaceData> fd; //face
 
-	//capacityをこの時点で動的確保しておき、余分なメモリの再確保を防ぐ
 	v.reserve(524288);
 	vt.reserve(524288);
 	vn.reserve(524288);
 	fd.reserve(524288);
 	
-	/*
-	OBJファイルは面データの頂点カウントを1スタートで行う
-	要素[0]にデフォルト値を代入して起き、面データの対応がないとき(v//とかv/vt/とか)は、頂点にこの値を代入する
-	*/
 	v.push_back(XMFLOAT3(0.0f,0.0f,0.0f));
 	vt.push_back(XMFLOAT2(0.0f, 0.0f));
 	vn.push_back(XMFLOAT3(0.0f, 0.0f, 0.0f));
 
-	char lineData[MAX_READ_LINEDATA]; //1行データ
+	char lineData[MAX_READ_LINEDATA];
 	
-	std::vector<std::string> splitData; //分割後文字列格納配列
-	splitData.reserve(50); //メモリ再確保防止
+	std::vector<std::string> splitData;
 
-	bool isMaterial = false; //マテリアルファイルが存在するかフラグ
+	bool isMaterial = false; //if there is no material, this application doesn't load .mtl file
 
-	int idxOffset = 0; //インデックスオフセット 3頂点の三角形ポリゴンメッシュで描画していくので、頂点オフセットは (面で宣言される頂点数 - 2) * 3ストライドする必要あり
+	int idxOffset = 0;
 
-	//1行ずつ文字列で取得、分割＆変換しデータとして記録していく
+	/*
+	data is Line data, so we have to read data by a line and split data with blank
+	*/
 	while (fgets(lineData, MAX_READ_LINEDATA, modelFp) != NULL) {
-		//読み込んだ一行のデータを分割し、配列に格納できる形にする
 		OBJ_splitBlank(lineData, splitData);
-		if (splitData[0] == "v") { //頂点
+		if (splitData[0] == "v") { //if data is vertex
 			v.push_back(XMFLOAT3(std::stof(splitData[1]), std::stof(splitData[2]), std::stof(splitData[3])));
 		}
-		else if (splitData[0] == "vt") { //UV
+		else if (splitData[0] == "vt") { //if data is UV
 			vt.push_back(XMFLOAT2(std::stof(splitData[1]), std::stof(splitData[2])));
 		}
-		else if (splitData[0] == "vn") { //法線
+		else if (splitData[0] == "vn") { //if data is normal
 			vn.push_back(XMFLOAT3(std::stof(splitData[1]), std::stof(splitData[2]), std::stof(splitData[3])));
 		}
-		else if (splitData[0] == "f") { //面データ
+		else if (splitData[0] == "f") { //if data is face
+			/*
+			DirectX draw mesh with Triangle Polygon, but .obj File has 4 more vertices in one polygon.
+			Application has to deal with this problem
+			*/
 			idxOffset += (((splitData.size() - 1) - 2) * 3);
 
 			OBJFaceData tmpData(splitData.size() - 1);
 			for (int i = 0; i < tmpData.vertexCnt; i++) {
-				OBJ_splitSlash(splitData[i + 1], tmpData.dataIndex[i]); //面データはスラッシュ区切り
+				OBJ_splitSlash(splitData[i + 1], tmpData.dataIndex[i]);
 			}
 			fd.push_back(tmpData);
 		}
-		else if (splitData[0] == "mtllib") { //マテリアルファイルパス
-			isMaterial = true; //マテリアル存在フラグを立てる
-			//マテリアルファイル名の記述に./から始めている場合はそれを削除する
+		else if (splitData[0] == "mtllib") { //it means "There is a Material File"
+			isMaterial = true; //if flaged, application read .metl file
+
 			int slashPos = splitData[1].find_first_of("/");
 			if (slashPos != std::string::npos) splitData[1].erase(0, slashPos + 1);
 
-			pc.AddLeafPath(modelPath, materialPath, splitData[1].c_str()); //モデルファイルパスにマテリアルファイルパスを付加する
+			//Create MaterialPath
+			pc.AddLeafPath(modelPath, materialPath, splitData[1].c_str());
 			std::cout << materialPath << std::endl;
 		}
-		else if (splitData[0] == "usemtl") { //マテリアル名
+		else if (splitData[0] == "usemtl") { //it means "mesh uses this material"
 			OBJMaterialRef tmpMatRef;
-			for (int splitNum = 1; splitNum < splitData.size(); splitNum++) { //マテリアル名が空白込みで定義されている場合があるので対応
+			for (int splitNum = 1; splitNum < splitData.size(); splitNum++) {
 				tmpMatRef.matName += splitData[splitNum];
 			}
 			tmpMatRef.idxOffset = idxOffset;
@@ -179,47 +177,44 @@ HRESULT Object::OBJ_LoadModelData(std::string path, ID3D12Device* device) {
 	}
 	fclose(modelFp);
 	
-	//マテリアル適用数を決める
+	//decide how many materials will apply to meshes
 	for (int i = 0; i < matRef.size() - 1; i++) {
 		matRef[i].idxNum = matRef[i + 1].idxOffset - matRef[i].idxOffset;
-
-		/*std::cout << matRef[i].matName << std::endl;
-		std::cout << matRef[i].idxOffset << std::endl;
-		std::cout << matRef[i].idxNum << std::endl;*/
 	}
 	matRef[matRef.size() - 1].idxNum = idxOffset - matRef[matRef.size() - 1].idxOffset;
 
-	/*std::cout << matRef[matRef.size() - 1].matName << std::endl;
-	std::cout << matRef[matRef.size() - 1].idxOffset << std::endl;
-	std::cout << matRef[matRef.size() - 1].idxNum << std::endl;*/
-
-	if (isMaterial) { //この後の処理はマテリアルファイルがあった場合にのみ行う
-		//ファイルロード
-		FILE* matFp; //マテリアルファイル
+	if (isMaterial) {
+		FILE* matFp;
 		matFp = fopen(materialPath, "r");
 		if (matFp == NULL) {
 			std::cout << "cannnot open material file\n";
 		}
 
-		//std::cout << materialPath << std::endl;
 
 		/*
-		マテリアルファイルは、newmtlから次の空行まで
+		Material Data is defined frome "newmtl" to next blank line
 		*/
 		int materialNum = 0;
 		OBJMaterial tmpMat;
 		std::string tmpName;
 		while (fgets(lineData, MAX_READ_LINEDATA, matFp) != NULL) {
 			OBJ_splitBlank(lineData, splitData);
-			if (splitData[0] == "newmtl") { //マテリアルファイルでのマテリアル宣言
+			if (splitData[0] == "newmtl") {
 				if (materialNum > 0) materials.push_back(tmpMat);
+				//push this tmpData to MaterialData, so application should reset tmpData every loop
 				tmpMat.Init();
 				tmpName.clear();
+				/*
+				program split data with blank, but material cen be named with blank, so program have to combine each name data
+				*/
 				for (int splitNum = 1; splitNum < splitData.size(); splitNum++) {
 					tmpName += splitData[splitNum];
 				}
 				tmpMat.materialName = tmpName;
-				//マテリアル参照データと実際のマテリアルの対応付けを行う
+				
+				/*
+				this data will be referenced by Drawing process
+				*/
 				for (int i = 0; i < matRef.size(); i++) {
 					if (matRef[i].matName == tmpName) {
 						matRef[i].matID = materialNum;
@@ -228,57 +223,61 @@ HRESULT Object::OBJ_LoadModelData(std::string path, ID3D12Device* device) {
 				materialNum++;
 			}
 			else {
-				if (splitData[0] == "Ka") { //アンビエント色
+				if (splitData[0] == "Ka") { //if ambient color
 					tmpMat.mcb.ambient = XMFLOAT4(std::stof(splitData[1]), std::stof(splitData[2]), std::stof(splitData[3]), 1.0f);
 				}
-				else if (splitData[0] == "Kd") { //ディフューズ色
+				else if (splitData[0] == "Kd") { //if diffuse color
 					tmpMat.mcb.diffuse = XMFLOAT4(std::stof(splitData[1]), std::stof(splitData[2]), std::stof(splitData[3]), 1.0f);
 				}
-				else if (splitData[0] == "Ks") { //スペキュラ色
+				else if (splitData[0] == "Ks") { //if specular color
 					tmpMat.mcb.specular = XMFLOAT4(std::stof(splitData[1]), std::stof(splitData[2]), std::stof(splitData[3]), 1.0f);
 				}
-				else if (splitData[0] == "Ns") { //スペキュラ指数
+				else if (splitData[0] == "Ns") { //if specular power
 					tmpMat.mcb.Nspecular = std::stof(splitData[1]);
 				}
 
 
-				//ファイルパスを適切な形に変換する必要あり
-				/*
-				1.まずモデルファイルディレクトリ名で検索
-				2.見つかった場合は、そのファイルディレクトリ以下のパスを取得し、modelPathに結合する
-				3.見つからない場合は、フォルダ分けされずに直接モデルファイル直下に置かれているとみなして、文字列をそのままmodelPathに結合する
-				*/
-				else if (splitData[0] == "map_Ka") { //アンビエントテクスチャ
+				//Texture Path
+				else if (splitData[0] == "map_Ka") { //if ambient texture
 					std::string tmpMatPath;
-					for (int i = 1; i < splitData.size(); i++) { //今回の結合は空白を空白として扱う
+					/*
+					this process also combine blank-splitted data, but Path can have blank data, so process have to add blank after combien split data 
+					*/
+					for (int i = 1; i < splitData.size(); i++) {
 						tmpMatPath += splitData[i];
 						tmpMatPath += " ";
 					}
-					tmpMatPath.erase(tmpMatPath.end() - 1); //最後の空白は余計なので削除
+					tmpMatPath.erase(tmpMatPath.end() - 1); //Loop add Extra add so remove it.
 
 					char tmpStr[MAX_PATH_LENGTH];
+					
+					/*
+					tmpMatPath has modelDirName, so remove it and add modelPath.(because modelPath already has modelDirName)
+					*/
 					pc.GetAfterPathFromDirectoryName(tmpMatPath.c_str(), tmpStr, modelDirName);
 					pc.AddLeafPath(modelPath, tmpMat.ambTexPath, tmpStr);
 				}
-				else if (splitData[0] == "map_Kd") { //ディフューズテクスチャ
+				else if (splitData[0] == "map_Kd") { //if diffuse texture
+					//same process
 					std::string tmpMatPath;
-					for (int i = 1; i < splitData.size(); i++) { //今回の結合は空白を空白として扱う
+					for (int i = 1; i < splitData.size(); i++) {
 						tmpMatPath += splitData[i];
 						tmpMatPath += " ";
 					}
-					tmpMatPath.erase(tmpMatPath.end() - 1); //最後の空白は余計なので削除
+					tmpMatPath.erase(tmpMatPath.end() - 1);
 
 					char tmpStr[MAX_PATH_LENGTH];
 					pc.GetAfterPathFromDirectoryName(tmpMatPath.c_str(), tmpStr, modelDirName);
 					pc.AddLeafPath(modelPath, tmpMat.difTexPath, tmpStr);
 				}
-				else if (splitData[0] == "map_Ks") { //スペキュラテクスチャ
+				else if (splitData[0] == "map_Ks") { //specular Texture
+					//same process
 					std::string tmpMatPath;
-					for (int i = 1; i < splitData.size(); i++) { //今回の結合は空白を空白として扱う
+					for (int i = 1; i < splitData.size(); i++) {
 						tmpMatPath += splitData[i];
 						tmpMatPath += " ";
 					}
-					tmpMatPath.erase(tmpMatPath.end() - 1); //最後の空白は余計なので削除
+					tmpMatPath.erase(tmpMatPath.end() - 1);
 					char tmpStr[MAX_PATH_LENGTH];
 
 					pc.GetAfterPathFromDirectoryName(tmpMatPath.c_str(), tmpStr, modelDirName);
@@ -287,10 +286,6 @@ HRESULT Object::OBJ_LoadModelData(std::string path, ID3D12Device* device) {
 			}
 		}
 		materials.push_back(tmpMat);
-	
-		/*for (int i = 0; i < matRef.size(); i++) {
-			std::cout << matRef[i].matName << " " << matRef[i].matID << std::endl;
-		}*/
 
 		fclose(matFp);
 
@@ -313,38 +308,38 @@ HRESULT Object::OBJ_LoadModelData(std::string path, ID3D12Device* device) {
 		}*/
 	}
 
-	unsigned indexNum = 0; //インデックス数 1頂点処理するたびにインクリメントする
-	//面情報をもとに、　頂点情報の格納と頂点インデックスの生成;
+	unsigned indexNum = 0;
 	for (int i = 0; i < fd.size(); i++) {
-		//この時点でマテリアル参照データのインデックスオフセットは面の番号で記録されているので、ここでインデックス番号に修正する
-		
 
 		/*
-		"/"ない場合 : 頂点のみ
-		"a/b"の場合 : 頂点/テクスチャ座標
-		"a//b"の場合 : 頂点//法線
-		"a/b/c"の場合 : 頂点/テクスチャ座標/法線
+		face data is some format.
+		x// -> vertex only
+		x/y/ -> vertex and UV
+		x//y -> vertex and normal
+		x/y/z -> vertex and UV and normal
 		*/
 
-		//まず面情報を分割する
 		/*
-		objファイルは、面情報(f)に頂点と頂点に対応するUV座標および法線の情報がある
-	    fの一要素が一頂点となる
+		face data is define one face in one line.
 		*/
 
 		int splitData[3];
 		for (int j = 0; j < fd[i].vertexCnt; j++) {
-			OBJVertex tmpVert; //OBJvertices一時保管用
+			OBJVertex tmpVert;
 
 			tmpVert.pos = v[fd[i].dataIndex[j][0]];
 			tmpVert.uv = vt[fd[i].dataIndex[j][1]];
 			tmpVert.normal = vn[fd[i].dataIndex[j][2]];
 				
-			//頂点データへプッシュ
+			
 			vertices.push_back(tmpVert);
 		}
 
-		//f[i].faceNumの個数をもとにインデックス値を生成
+		//Create index
+		/*
+		if one face has 3 vertices, this face is Triangle polygon, so push index in order
+		if one face has 4 more vertices, program should create (vertices count - 2) Triangles.
+		*/
 		int indexOffset = indexNum;
 		for (int j = 0; j < (fd[i].vertexCnt - 2); j++) {
 			indices.push_back(indexOffset);
@@ -363,12 +358,12 @@ HRESULT Object::OBJ_LoadModelData(std::string path, ID3D12Device* device) {
 	vectorRelease(fd);
 	vectorRelease(splitData);
 
-	//HeapPropertyの設定
+	//Set HeapProperty
 	D3D12_HEAP_PROPERTIES heapProp = {};
 	heapProp.Type = D3D12_HEAP_TYPE_UPLOAD;
 	heapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
 	heapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-	//ResourcDescの定義
+	//describe Resource(now for VertexBuffer)
 	D3D12_RESOURCE_DESC resDesc = {};
 	resDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
 	resDesc.Width = vertices.size() * sizeof(OBJVertex);
@@ -379,14 +374,13 @@ HRESULT Object::OBJ_LoadModelData(std::string path, ID3D12Device* device) {
 	resDesc.SampleDesc.Count = 1;
 	resDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 	resDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-	/*-----VertexBufferの生成-----*/
-	//VertexBuffer(Resource)の生成
+	/*-----CreateVertexBuffer-----*/
 	hr = device->CreateCommittedResource(&heapProp, D3D12_HEAP_FLAG_NONE, &resDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&vertexBuffer));
 	if (FAILED(hr)) {
 		std::cout << "Failed to Create vertexBuffer\n";
 		return hr;
 	}
-	/*-----頂点データのマップ-----*/
+	/*-----Map to Vertices Data-----*/
 	OBJVertex* vertMap = nullptr;
 	hr = vertexBuffer->Map(0, nullptr, (void**)&vertMap);
 	if (FAILED(hr)) {
@@ -396,22 +390,22 @@ HRESULT Object::OBJ_LoadModelData(std::string path, ID3D12Device* device) {
 	std::copy(std::begin(vertices), std::end(vertices), vertMap);
 	vertexBuffer->Unmap(0, nullptr);
 
-	/*-----VertexBufferViewの生成-----*/
+	/*-----Create VertexBufferView-----*/
 	vbView = {};
 	vbView.BufferLocation = vertexBuffer->GetGPUVirtualAddress();
 	vbView.SizeInBytes = vertices.size() * sizeof(OBJVertex);
 	vbView.StrideInBytes = sizeof(OBJVertex);
 
-	/*-----IndexBufferの生成-----*/
-	//ResourceDescの変更
+	/*-----Create IndexBuffer-----*/
+	//Change ResourceDesc's Width
 	resDesc.Width = indices.size() * sizeof(indices[0]);
-	//IndexBufferの生成
+	//Create IndexBuffer
 	hr = device->CreateCommittedResource(&heapProp, D3D12_HEAP_FLAG_NONE, &resDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&indexBuffer));
 	if (FAILED(hr)) {
 		std::cout << "Failed to Create indexBuffer\n";
 		return hr;
 	}
-	/*-----インデックスデータのマップ-----*/
+	/*-----Map to Indices Data-----*/
 	unsigned* idxMap = nullptr;
 	hr = indexBuffer->Map(0, nullptr, (void**)&idxMap);
 	if (FAILED(hr)) {
@@ -421,22 +415,22 @@ HRESULT Object::OBJ_LoadModelData(std::string path, ID3D12Device* device) {
 	std::copy(std::begin(indices), std::end(indices), idxMap);
 	indexBuffer->Unmap(0, nullptr);
 
-	/*-----IndexBufferViewの生成-----*/
+	/*-----Create IndexBufferView-----*/
 	ibView = {};
 	ibView.BufferLocation = indexBuffer->GetGPUVirtualAddress();
 	ibView.Format = DXGI_FORMAT_R32_UINT;
 	ibView.SizeInBytes = indices.size() * sizeof(indices[0]);
 
-	/*-----MaterialBufferの生成-----*/
-	//ResourceDescの変更
+	/*-----Create MaterialBuffer(this buffer create as ConstantBuffer, so this process needs to create Descriptor)-----*/
+	//Change ResourceDesc
 	resDesc.Width = sizeof(OBJMaterialCB) * materials.size();
-	//MaterialBufferの生成
+	//CreateMaterialBuffer
 	hr = device->CreateCommittedResource(&heapProp, D3D12_HEAP_FLAG_NONE, &resDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&materialBuffer));
 	if (FAILED(hr)) {
 		std::cout << "Failed to Create materialBuffer" << std::endl;
 	}
 	std::cout << materialBuffer->GetDesc().Width << std::endl;
-	/*-----マテリアルデータのマップ-----*/
+	/*-----Map to MaterialData-----*/
 	OBJMaterialCB* matMap;
 	hr = materialBuffer->Map(0, nullptr, (void**)&matMap);
 	if (FAILED(hr)) {
@@ -460,7 +454,7 @@ HRESULT Object::OBJ_LoadModelData(std::string path, ID3D12Device* device) {
 	}*/
 	materialBuffer->Unmap(0, nullptr);
 
-	/*-----マテリアル用ディスクリプタヒープの生成-----*/
+	/*-----Create DescriptorHeap for Material-----*/
 	D3D12_DESCRIPTOR_HEAP_DESC matHeapDesc;
 	matHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	matHeapDesc.NodeMask = 0;
@@ -471,7 +465,7 @@ HRESULT Object::OBJ_LoadModelData(std::string path, ID3D12Device* device) {
 		std::cout << "Failed to Create material Descriptor Heap" << std::endl;
 		return hr;
 	}
-	//マテリアルバッファビューを作る(バッファのアドレス(位置)を教えなきゃいけないので、マテリアル数分のビューが必要らしい)
+	//Create MaterialBufferView(GPU need to know Buffer Adress, Create ViewCount MaterialBufferViews)
 	D3D12_CONSTANT_BUFFER_VIEW_DESC matCBVDesc = { };
 	matCBVDesc.BufferLocation = materialBuffer->GetGPUVirtualAddress();
 	matCBVDesc.SizeInBytes = sizeof(OBJMaterialCB);
@@ -501,9 +495,8 @@ HRESULT Object::checkPathLength(size_t length) {
 void Object::OBJ_splitBlank(std::string str, std::vector<std::string>& data) {
 	data.clear();
 
-	std::string splitter = " "; //分割文字列
-	std::string tmp; //一時格納用文字列
-
+	std::string splitter = " ";
+	std::string tmp;
 	int offset = 0;
 	int splitPos = 0;
 
@@ -511,18 +504,18 @@ void Object::OBJ_splitBlank(std::string str, std::vector<std::string>& data) {
 	while (splitPos != -1) {
 		tmp = str.substr(offset, splitPos - offset);
 
-		if (tmp.size() != 0) data.push_back(tmp); //空白と空白の間に文字列がない場合にはプッシュしない
+		if (tmp.size() != 0) data.push_back(tmp); //if there is no data between blank and next blank, don't push to vector
 
-		offset = splitPos + 1; //探索開始点を進める
+		offset = splitPos + 1;
 		splitPos = str.find(splitter, offset);
 	}
 
-	if (str.substr(offset).size() != 0) data.push_back(str.substr(offset, (str.size() - offset - 1))); //最後の一回(エスケープシーケンス\nが入るので無視するために1要素省く)
+	if (str.substr(offset).size() != 0) data.push_back(str.substr(offset, (str.size() - offset - 1))); //Remove EscapeSequence('\n')
 }
 
 void Object::OBJ_splitSlash(std::string str, int* data) {
-	std::string splitter = "/"; //分割文字列
-	std::string tmp; //一時格納用文字列
+	std::string splitter = "/";
+	std::string tmp;
 
 	int offset = 0;
 	int splitPos = 0;
@@ -531,30 +524,33 @@ void Object::OBJ_splitSlash(std::string str, int* data) {
 	for(int i = 0;i < 2;i++){
 		tmp = str.substr(offset, splitPos - offset);
 
-		if (tmp.size() == 0) data[i] = 0; //スラッシュとスラッシュの間に文字がない場合は、0をプッシュする
+		if (tmp.size() == 0) data[i] = 0; //if there is no data between blank and next blank, push 0 to vector
 		else data[i] = std::stoi(tmp);
 
-		offset = splitPos + 1; //探索開始点を進める
+		offset = splitPos + 1;
 		splitPos = str.find(splitter, offset);
 	}
 
-	if (str.substr(offset).size() == 0) data[2] = 0; //最後の一回
+	if (str.substr(offset).size() == 0) data[2] = 0;
 	else data[2] = std::stoi((str.substr(offset)));
 }
 
+/*
+this function return MaterialReference Index which match materialName.
+if do not match materialName, return value is -1
+*/
 int Object::findMaterialIndex(std::vector<OBJMaterialRef> mr, std::string material) {
 	for (int i = 0; i < mr.size(); i++) {
 		if (mr[i].matName == material) return i;
 	}
 
-	return -1; //まだ未参照のマテリアルである場合は-1を返す
+	return -1; 
 }
 
 
 
 template<typename T>
 void Object::vectorRelease(std::vector<T>& vec) {
-	//最近のvectorの解放(sizeを0にしてからcapacityを0に)の仕方らしい
 	vec.clear();
 	vec.shrink_to_fit();
 }

@@ -40,7 +40,10 @@ struct MatrixData {
 
 class DirectXController {
 public:
-	/*-----メンバ変数-----*/
+	DirectXController();
+	~DirectXController();
+
+	/*-----DirectX Interface-----*/
 	ID3D12Device* device = nullptr;
 
 	IDXGIFactory6* factory = nullptr;
@@ -53,7 +56,7 @@ public:
 
 	ID3D12DescriptorHeap* rtvHeap = nullptr;
 	ID3D12DescriptorHeap* dsvHeap = nullptr;
-	ID3D12DescriptorHeap* basicDescHeap = nullptr;
+	ID3D12DescriptorHeap* cbvHeap = nullptr;
 
 	ID3DBlob* vertexShader = nullptr;
 	ID3DBlob* pixelShader = nullptr;
@@ -64,41 +67,29 @@ public:
 
 	ID3D12RootSignature* rootsignature = nullptr;
 
-	ID3D12Fence* fence = nullptr;
-	UINT fenceVal = 0;
-
-	MatrixData* mapMatrix;
-
-	float angle = 0;
-
 	std::vector<ID3D12Resource*> backBuffers;
 	ID3D12Resource* depthBuffer = nullptr;
-	//ID3D12Resource* vertexBuffer = nullptr;
-	//ID3D12Resource* indexBuffer = nullptr;
 	ID3D12Resource* constBuffer = nullptr;
 
-	Object objs[MAX_OBJECT_COUNT];
+	ID3D12Fence* fence = nullptr;
+	UINT fenceVal = 0;
+	/*--------------------------*/
+
+	MatrixData* mapMatrix; //use for Buffer Map(update ConstantBuffer Value)
+
+	Object objs[MAX_OBJECT_COUNT]; //Array of Objects
 	int LoadedObjCount = 0;
 
-	XMMATRIX worldMatrix;
-	XMMATRIX viewMatrix;
-	XMMATRIX projectionMatrix;
-
-	/*-----コンストラクタ/デストラクタ-----*/
-	DirectXController();
-	~DirectXController();
-
-	/*-----メンバ関数-----*/
-	HRESULT InitD3D(HWND hwnd);
-	HRESULT CreateResources(Camera &camera);
+	HRESULT InitD3D(HWND hwnd);	//hwnd = MainWindowHandle
+	HRESULT CreateResources(Camera& camera); //camera = camera
 	HRESULT CreateShaders();
 	HRESULT SetGraphicsPipeLine();
-	HRESULT Draw(Camera& camera);
-	HRESULT UpdateObjTransform(HWND hwnd[9], int offset, XMFLOAT3& objData);
-	HRESULT UpdateWorldMatrix(Object& obj, int objIndex);
-	HRESULT UpdateViewMatrix(Camera &camera, int objIndex);
-	HRESULT LoadObject(const char* objName);
+	HRESULT Draw(Camera& camera);	//camera = camera
+	HRESULT UpdateObjTransform(HWND hwnd[9], int offset, XMFLOAT3& objData);	//hwnd[9] = EditBox used for Object transform, offset = arrays offset, objData = ObjectTransform data
+	HRESULT UpdateWorldMatrix(Object& obj, int objIndex);	//obj = Object which you want to update, objIndex = obj's index
+	HRESULT UpdateViewMatrix(Camera &camera, int objIndex);	//camera = Camera which you want to update, objIndex = obj's index
+	HRESULT LoadObject(const char* objName); //objName = Object Name which you want to load
+	
 	void EnableDebugLayer();
-	void Release();
-
+	void Release();	//safe Release function for DIrectX Interfaces
 };
