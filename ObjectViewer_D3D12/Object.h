@@ -11,7 +11,7 @@
 #include"PathController.h"
 using namespace DirectX;
 
-#define MAX_READ_LINEDATA 1024 //メッシュ/マテリアルファイルを読み込むときの最大文字数/行
+#define MAX_READ_LINEDATA 10000 //メッシュ/マテリアルファイルを読み込むときの最大文字数/行
 #define MAX_MATERIAL_REFERENCE 128 
 
 #pragma comment(lib,"DirectXTex.lib")

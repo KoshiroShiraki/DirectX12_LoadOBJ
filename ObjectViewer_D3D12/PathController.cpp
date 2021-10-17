@@ -44,7 +44,6 @@ void PathController::RemoveLeafPath(const char* c1, char* path, size_t pathLengt
 void PathController::AddLeafPath(const char* c1, char* path, const char* addPath, size_t pathLength) {
 	size_t len = strlen(c1);
 	size_t addLen = strlen(addPath);
-	//メモリオーバーしないかチェック
 	if ((len + addLen + 2) > pathLength) {
 		std::cout << "Error : Path Length is too Long" << std::endl;
 	}

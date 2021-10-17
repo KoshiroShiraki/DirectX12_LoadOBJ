@@ -7,8 +7,6 @@ float4 main(Output input) : SV_TARGET
 	float kb = 1.0f;
 	float kc = 1.0f;
 
-	float unko = dot(light, input.normal) * 0.2f;
-
 	float4 f_ambient = ambient * ka;
 	float4 f_diffuse = diffuse * (dot(light, input.normal)) * kb;
 	return f_ambient + f_diffuse;

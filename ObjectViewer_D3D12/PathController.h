@@ -2,7 +2,7 @@
 #include<Windows.h>
 #include<iostream>
 
-#define MAX_PATH_LENGTH 256
+#define MAX_PATH_LENGTH 1024
 
 class PathController {
 public:

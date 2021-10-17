@@ -201,7 +201,7 @@ HRESULT DirectXController::CreateResources(Camera &camera) {
 	DirectX::XMFLOAT3 up(0, 1, 0); // = use for compute axis from eye and target
 	camera.InitCamera(eye, target, up); //ViewMatrix Mange Camera Class
 	//Create ProjectionMatrix
-	XMMATRIX projectionMatrix = DirectX::XMMatrixPerspectiveFovLH(DirectX::XM_PIDIV2, static_cast<float>(window_Width) / static_cast<float>(window_Height), 1.0f, 1000.0f);
+	XMMATRIX projectionMatrix = DirectX::XMMatrixPerspectiveFovLH(DirectX::XM_PIDIV2, static_cast<float>(window_Width) / static_cast<float>(window_Height), 1.0f, 10000.0f);
 	//describe Resource
 	D3D12_RESOURCE_DESC resDesc = {};
 	resDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;

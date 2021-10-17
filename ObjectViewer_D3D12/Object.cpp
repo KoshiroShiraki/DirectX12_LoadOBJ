@@ -134,13 +134,28 @@ HRESULT Object::OBJ_LoadModelData(std::string path, ID3D12Device* device) {
 	while (fgets(lineData, MAX_READ_LINEDATA, modelFp) != NULL) {
 		OBJ_splitBlank(lineData, splitData);
 		if (splitData[0] == "v") { //if data is vertex
-			v.push_back(XMFLOAT3(std::stof(splitData[1]), std::stof(splitData[2]), std::stof(splitData[3])));
+			try {
+				v.push_back(XMFLOAT3(std::stof(splitData[1]), std::stof(splitData[2]), std::stof(splitData[3])));
+			}
+			catch (std::exception& e) {
+				v.push_back(XMFLOAT3(0, 0, 0));
+			}
 		}
 		else if (splitData[0] == "vt") { //if data is UV
-			vt.push_back(XMFLOAT2(std::stof(splitData[1]), std::stof(splitData[2])));
+			try {
+				vt.push_back(XMFLOAT2(std::stof(splitData[1]), std::stof(splitData[2])));
+			}
+			catch (std::exception& e) {
+				vt.push_back(XMFLOAT2(0, 0));
+			}
 		}
 		else if (splitData[0] == "vn") { //if data is normal
-			vn.push_back(XMFLOAT3(std::stof(splitData[1]), std::stof(splitData[2]), std::stof(splitData[3])));
+			try {
+				vn.push_back(XMFLOAT3(std::stof(splitData[1]), std::stof(splitData[2]), std::stof(splitData[3])));
+			}
+			catch (std::exception& e) {
+				vn.push_back(XMFLOAT3(0, 0, 0));
+			}
 		}
 		else if (splitData[0] == "f") { //if data is face
 			/*
@@ -158,8 +173,12 @@ HRESULT Object::OBJ_LoadModelData(std::string path, ID3D12Device* device) {
 		else if (splitData[0] == "mtllib") { //it means "There is a Material File"
 			isMaterial = true; //if flaged, application read .metl file
 
+			for (int i = 1; i < splitData.size() - 1; i++) {
+				splitData[1] += " " + splitData[i + 1];
+			}
 			int slashPos = splitData[1].find_first_of("/");
 			if (slashPos != std::string::npos) splitData[1].erase(0, slashPos + 1);
+
 
 			//Create MaterialPath
 			pc.AddLeafPath(modelPath, materialPath, splitData[1].c_str());
@@ -190,131 +209,131 @@ HRESULT Object::OBJ_LoadModelData(std::string path, ID3D12Device* device) {
 			std::cout << "cannnot open material file\n";
 		}
 
-
-		/*
-		Material Data is defined frome "newmtl" to next blank line
-		*/
-		int materialNum = 0;
-		OBJMaterial tmpMat;
-		std::string tmpName;
-		while (fgets(lineData, MAX_READ_LINEDATA, matFp) != NULL) {
-			OBJ_splitBlank(lineData, splitData);
-			if (splitData[0] == "newmtl") {
-				if (materialNum > 0) materials.push_back(tmpMat);
-				//push this tmpData to MaterialData, so application should reset tmpData every loop
-				tmpMat.Init();
-				tmpName.clear();
-				/*
-				program split data with blank, but material cen be named with blank, so program have to combine each name data
-				*/
-				for (int splitNum = 1; splitNum < splitData.size(); splitNum++) {
-					tmpName += splitData[splitNum];
-				}
-				tmpMat.materialName = tmpName;
-				
-				/*
-				this data will be referenced by Drawing process
-				*/
-				for (int i = 0; i < matRef.size(); i++) {
-					if (matRef[i].matName == tmpName) {
-						matRef[i].matID = materialNum;
-					}
-				}
-				materialNum++;
-			}
-			else {
-				if (splitData[0] == "Ka") { //if ambient color
-					tmpMat.mcb.ambient = XMFLOAT4(std::stof(splitData[1]), std::stof(splitData[2]), std::stof(splitData[3]), 1.0f);
-				}
-				else if (splitData[0] == "Kd") { //if diffuse color
-					tmpMat.mcb.diffuse = XMFLOAT4(std::stof(splitData[1]), std::stof(splitData[2]), std::stof(splitData[3]), 1.0f);
-				}
-				else if (splitData[0] == "Ks") { //if specular color
-					tmpMat.mcb.specular = XMFLOAT4(std::stof(splitData[1]), std::stof(splitData[2]), std::stof(splitData[3]), 1.0f);
-				}
-				else if (splitData[0] == "Ns") { //if specular power
-					tmpMat.mcb.Nspecular = std::stof(splitData[1]);
-				}
-
-
-				//Texture Path
-				else if (splitData[0] == "map_Ka") { //if ambient texture
-					std::string tmpMatPath;
+		else {
+			/*
+			Material Data is defined frome "newmtl" to next blank line
+			*/
+			int materialNum = 0;
+			OBJMaterial tmpMat;
+			std::string tmpName;
+			while (fgets(lineData, MAX_READ_LINEDATA, matFp) != NULL) {
+				OBJ_splitBlank(lineData, splitData);
+				if (splitData[0] == "newmtl") {
+					if (materialNum > 0) materials.push_back(tmpMat);
+					//push this tmpData to MaterialData, so application should reset tmpData every loop
+					tmpMat.Init();
+					tmpName.clear();
 					/*
-					this process also combine blank-splitted data, but Path can have blank data, so process have to add blank after combien split data 
+					program split data with blank, but material cen be named with blank, so program have to combine each name data
 					*/
-					for (int i = 1; i < splitData.size(); i++) {
-						tmpMatPath += splitData[i];
-						tmpMatPath += " ";
+					for (int splitNum = 1; splitNum < splitData.size(); splitNum++) {
+						tmpName += splitData[splitNum];
 					}
-					tmpMatPath.erase(tmpMatPath.end() - 1); //Loop add Extra add so remove it.
+					tmpMat.materialName = tmpName;
 
-					char tmpStr[MAX_PATH_LENGTH];
-					
 					/*
-					tmpMatPath has modelDirName, so remove it and add modelPath.(because modelPath already has modelDirName)
+					this data will be referenced by Drawing process
 					*/
-					pc.GetAfterPathFromDirectoryName(tmpMatPath.c_str(), tmpStr, modelDirName);
-					pc.AddLeafPath(modelPath, tmpMat.ambTexPath, tmpStr);
-				}
-				else if (splitData[0] == "map_Kd") { //if diffuse texture
-					//same process
-					std::string tmpMatPath;
-					for (int i = 1; i < splitData.size(); i++) {
-						tmpMatPath += splitData[i];
-						tmpMatPath += " ";
+					for (int i = 0; i < matRef.size(); i++) {
+						if (matRef[i].matName == tmpName) {
+							matRef[i].matID = materialNum;
+						}
 					}
-					tmpMatPath.erase(tmpMatPath.end() - 1);
-
-					char tmpStr[MAX_PATH_LENGTH];
-					pc.GetAfterPathFromDirectoryName(tmpMatPath.c_str(), tmpStr, modelDirName);
-					pc.AddLeafPath(modelPath, tmpMat.difTexPath, tmpStr);
+					materialNum++;
 				}
-				else if (splitData[0] == "map_Ks") { //specular Texture
-					//same process
-					std::string tmpMatPath;
-					for (int i = 1; i < splitData.size(); i++) {
-						tmpMatPath += splitData[i];
-						tmpMatPath += " ";
+				else {
+					if (splitData[0] == "Ka") { //if ambient color
+						tmpMat.mcb.ambient = XMFLOAT4(std::stof(splitData[1]), std::stof(splitData[2]), std::stof(splitData[3]), 1.0f);
 					}
-					tmpMatPath.erase(tmpMatPath.end() - 1);
-					char tmpStr[MAX_PATH_LENGTH];
+					else if (splitData[0] == "Kd") { //if diffuse color
+						tmpMat.mcb.diffuse = XMFLOAT4(std::stof(splitData[1]), std::stof(splitData[2]), std::stof(splitData[3]), 1.0f);
+					}
+					else if (splitData[0] == "Ks") { //if specular color
+						tmpMat.mcb.specular = XMFLOAT4(std::stof(splitData[1]), std::stof(splitData[2]), std::stof(splitData[3]), 1.0f);
+					}
+					else if (splitData[0] == "Ns") { //if specular power
+						tmpMat.mcb.Nspecular = std::stof(splitData[1]);
+					}
 
-					pc.GetAfterPathFromDirectoryName(tmpMatPath.c_str(), tmpStr, modelDirName);
-					pc.AddLeafPath(modelPath, tmpMat.speTexPath, tmpStr);
+
+					//Texture Path
+					else if (splitData[0] == "map_Ka") { //if ambient texture
+						std::string tmpMatPath;
+						/*
+						this process also combine blank-splitted data, but Path can have blank data, so process have to add blank after combien split data
+						*/
+						for (int i = 1; i < splitData.size(); i++) {
+							tmpMatPath += splitData[i];
+							tmpMatPath += " ";
+						}
+						tmpMatPath.erase(tmpMatPath.end() - 1); //Loop add Extra add so remove it.
+
+						char tmpStr[MAX_PATH_LENGTH];
+
+						/*
+						tmpMatPath has modelDirName, so remove it and add modelPath.(because modelPath already has modelDirName)
+						*/
+						pc.GetAfterPathFromDirectoryName(tmpMatPath.c_str(), tmpStr, modelDirName);
+						pc.AddLeafPath(modelPath, tmpMat.ambTexPath, tmpStr);
+					}
+					else if (splitData[0] == "map_Kd") { //if diffuse texture
+						//same process
+						std::string tmpMatPath;
+						for (int i = 1; i < splitData.size(); i++) {
+							tmpMatPath += splitData[i];
+							tmpMatPath += " ";
+						}
+						tmpMatPath.erase(tmpMatPath.end() - 1);
+
+						char tmpStr[MAX_PATH_LENGTH];
+						pc.GetAfterPathFromDirectoryName(tmpMatPath.c_str(), tmpStr, modelDirName);
+						pc.AddLeafPath(modelPath, tmpMat.difTexPath, tmpStr);
+					}
+					else if (splitData[0] == "map_Ks") { //specular Texture
+						//same process
+						std::string tmpMatPath;
+						for (int i = 1; i < splitData.size(); i++) {
+							tmpMatPath += splitData[i];
+							tmpMatPath += " ";
+						}
+						tmpMatPath.erase(tmpMatPath.end() - 1);
+						char tmpStr[MAX_PATH_LENGTH];
+
+						pc.GetAfterPathFromDirectoryName(tmpMatPath.c_str(), tmpStr, modelDirName);
+						pc.AddLeafPath(modelPath, tmpMat.speTexPath, tmpStr);
+					}
 				}
 			}
+			materials.push_back(tmpMat);
+
+			fclose(matFp);
+
+			/*for (int i = 0; i < materials.size(); i++) {
+				std::cout << materials[i].materialName << std::endl;
+				std::cout << "ambient : " << materials[i].mcb.ambient.x << " ";
+				std::cout << materials[i].mcb.ambient.y << " ";
+				std::cout << materials[i].mcb.ambient.z << std::endl;
+				std::cout << "diffuse : " << materials[i].mcb.diffuse.x << " ";
+				std::cout << materials[i].mcb.diffuse.y << " ";
+				std::cout << materials[i].mcb.diffuse.z << " " << std::endl;
+				std::cout << "specular : " << materials[i].mcb.specular.x << " ";
+				std::cout << materials[i].mcb.specular.y << " ";
+				std::cout << materials[i].mcb.specular.z << " " << std::endl;
+				std::cout << "Nspecular : " << materials[i].mcb.Nspecular << std::endl;
+				std::cout << "ambient texture : " << materials[i].ambTexPath << std::endl;
+				std::cout << "diffuse texture : " << materials[i].difTexPath << std::endl;
+				std::cout << "specular texture : " << materials[i].speTexPath << std::endl;
+				std::cout << std::endl;
+			}*/
 		}
-		materials.push_back(tmpMat);
-
-		fclose(matFp);
-
-		/*for (int i = 0; i < materials.size(); i++) {
-			std::cout << materials[i].materialName << std::endl;
-			std::cout << "ambient : " << materials[i].mcb.ambient.x << " ";
-			std::cout << materials[i].mcb.ambient.y << " ";
-			std::cout << materials[i].mcb.ambient.z << std::endl;
-			std::cout << "diffuse : " << materials[i].mcb.diffuse.x << " ";
-			std::cout << materials[i].mcb.diffuse.y << " ";
-			std::cout << materials[i].mcb.diffuse.z << " " << std::endl;
-			std::cout << "specular : " << materials[i].mcb.specular.x << " ";
-			std::cout << materials[i].mcb.specular.y << " ";
-			std::cout << materials[i].mcb.specular.z << " " << std::endl;
-			std::cout << "Nspecular : " << materials[i].mcb.Nspecular << std::endl;
-			std::cout << "ambient texture : " << materials[i].ambTexPath << std::endl;
-			std::cout << "diffuse texture : " << materials[i].difTexPath << std::endl;
-			std::cout << "specular texture : " << materials[i].speTexPath << std::endl;
-			std::cout << std::endl;
-		}*/
 	}
 
 	unsigned indexNum = 0;
 	for (int i = 0; i < fd.size(); i++) {
-
 		/*
 		face data is some format.
 		x// -> vertex only
-		x/y/ -> vertex and UV
+		x/y -> vertex and UV
 		x//y -> vertex and normal
 		x/y/z -> vertex and UV and normal
 		*/
@@ -501,7 +520,7 @@ void Object::OBJ_splitBlank(std::string str, std::vector<std::string>& data) {
 	int splitPos = 0;
 
 	splitPos = str.find(splitter, offset);
-	while (splitPos != -1) {
+	while (splitPos != -1) { //Loop while next SplitPos doesn't find
 		tmp = str.substr(offset, splitPos - offset);
 
 		if (tmp.size() != 0) data.push_back(tmp); //if there is no data between blank and next blank, don't push to vector
@@ -509,8 +528,16 @@ void Object::OBJ_splitBlank(std::string str, std::vector<std::string>& data) {
 		offset = splitPos + 1;
 		splitPos = str.find(splitter, offset);
 	}
+	/*
+	if program find last blank,  we should care handling last Data.
+	last data is...
+	[blank] x/x/x [blank] \n
+	or
+	[blank] x/x/x \n
+	*/
+	if (str.substr(offset).size() != 0 && str.substr(offset) != "\n")  data.push_back(str.substr(offset, (str.size() - offset - 1)));
 
-	if (str.substr(offset).size() != 0) data.push_back(str.substr(offset, (str.size() - offset - 1))); //Remove EscapeSequence('\n')
+	if (data.size() == 0) data.push_back("\0"); //if there is no element in vector, program is clashed by Exceptinal Error
 }
 
 void Object::OBJ_splitSlash(std::string str, int* data) {
@@ -521,18 +548,28 @@ void Object::OBJ_splitSlash(std::string str, int* data) {
 	int splitPos = 0;
 
 	splitPos = str.find(splitter, offset);
-	for(int i = 0;i < 2;i++){
-		tmp = str.substr(offset, splitPos - offset);
 
-		if (tmp.size() == 0) data[i] = 0; //if there is no data between blank and next blank, push 0 to vector
+	int i = 0;
+	while (splitPos != std::string::npos) {
+		tmp = str.substr(offset, splitPos - offset);
+		if (tmp.size() == 0) data[i] = 0; //if there is no data between split and next split, push 0 to vector
 		else data[i] = std::stoi(tmp);
 
 		offset = splitPos + 1;
 		splitPos = str.find(splitter, offset);
+		
+		i++;
 	}
 
-	if (str.substr(offset).size() == 0) data[2] = 0;
-	else data[2] = std::stoi((str.substr(offset)));
+	
+	if (i == 1) { //this case is 1 time split. it means data must be "vertex / UV"
+		data[1] = std::stoi((str.substr(offset)));
+		data[2] = 0;
+	}
+	else if (i == 2) { //this case is 2 times split. it means this data is "vertex / UV / Normal" or "vertex // Normal"
+		if (str.substr(offset).size() == 0) data[2] = 0;
+		else data[2] = std::stoi((str.substr(offset)));
+	}
 }
 
 /*
