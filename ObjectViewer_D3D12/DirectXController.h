@@ -1,8 +1,4 @@
-﻿/*
-☆DirectX管理クラス
-*/
-
-#pragma once
+﻿#pragma once
 #include<Windows.h>
 #include<d3d12.h>
 #include<d3dx12.h>
@@ -26,9 +22,8 @@
 #pragma comment(lib,"DirectXTex.lib")
 #pragma warning(disable: 4996)
 
-#define MAX_OBJECT_COUNT 20 //最大オブジェクト数
+#define MAX_OBJECT_COUNT 20
 
-//定数バッファ用
 struct MatrixData {
 	DirectX::XMMATRIX w;
 	DirectX::XMMATRIX v;
