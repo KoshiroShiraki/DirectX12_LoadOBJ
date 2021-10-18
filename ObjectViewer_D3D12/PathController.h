@@ -22,4 +22,5 @@ public:
 	void AddLeafPath(const char* c1, char* path, const char* addPath, size_t pathLength = MAX_PATH_LENGTH); //c1 = original string, path = variable which store the CreatedPath, addPath = string added to c1, pathLength = path's length
 	void GetLeafDirectryName(const char* c1, char* name, size_t nameLength); //c1 = original string, name = variable which store the CreatedPath, nameLength = name's length
 	void GetAfterPathFromDirectoryName(const char* c1, char* path, const char* DirectoryName, size_t pathLength = MAX_PATH_LENGTH); //c1 = original path, path = variable which store CreatedPath, DirectoryName = Path after this Directory will be got, pathLength = path's length
+	int PathFinder(const char* defaultPath, char* path, const char* startDir, size_t pathLength = MAX_PATH_LENGTH);
 };

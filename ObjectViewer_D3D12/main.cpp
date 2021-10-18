@@ -169,6 +169,21 @@ LRESULT editWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 			NULL
 		);
 
+		/*-----DeleteButton ... delete exist Object*/
+		app.hButton = CreateWindowEx(0,
+			"BUTTON",
+			"Delete",
+			WS_CHILD | WS_VISIBLE,
+			480,
+			165,
+			50,
+			20,
+			hwnd,
+			(HMENU)BUTTON_DELETE,
+			app.hInst,
+			NULL
+		);
+
 		/*-----ComboBox2 ... List Loaded Object-----*/
 		app.hDrop = CreateWindowEx(
 			0,
@@ -229,6 +244,10 @@ LRESULT editWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 				app.isLoadObject = true; //and Start Loading Object
 			}
 			return 0;
+		case BUTTON_DELETE:
+			if (app.objIndex != -1) {
+				app.isDeleteObject = true;
+			}
 
 		case DROPDOWN_BOX: //ComboBox2
 			switch (HIWORD(wparam)) {

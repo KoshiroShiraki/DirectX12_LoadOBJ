@@ -72,7 +72,7 @@ public:
 
 	MatrixData* mapMatrix; //use for Buffer Map(update ConstantBuffer Value)
 
-	Object objs[MAX_OBJECT_COUNT]; //Array of Objects
+	std::vector<Object> objs; //Array of Objects
 	int LoadedObjCount = 0;
 
 	HRESULT InitD3D(HWND hwnd);	//hwnd = MainWindowHandle

@@ -30,6 +30,8 @@ public:
 	bool isLoadObject;	//Check this Application is Loading new Object
 	std::string LoadObjPath;	//ObjectPath 
 
+	bool isDeleteObject = false;
+
 	bool isUpdateText = false;	//Check this Application is Changing EditBox's text
 
 	std::vector<std::string> DefaultObjFilePaths;	//Loadable Objects List.
@@ -39,6 +41,7 @@ public:
 public:
 	HRESULT CreateMainWindow(WNDCLASSEX& wcx);	//wcx = WindowRegisterClass for MainWindow
 	HRESULT CreateEditWindow(WNDCLASSEX& wcx);	//wcx = WindowRegisterClass for EditWindow
+	void DeleteObject();
 
 	HRESULT Initialize(WNDCLASSEX& mwcx, WNDCLASSEX& ewcx);	//mwcx = WindowRegisterClass for MainWindow, ewcx = WindowRegisterClass for EditWindow
 	void Update();

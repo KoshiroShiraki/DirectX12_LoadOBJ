@@ -182,7 +182,6 @@ HRESULT Object::OBJ_LoadModelData(std::string path, ID3D12Device* device) {
 
 			//Create MaterialPath
 			pc.AddLeafPath(modelPath, materialPath, splitData[1].c_str());
-			std::cout << materialPath << std::endl;
 		}
 		else if (splitData[0] == "usemtl") { //it means "mesh uses this material"
 			OBJMaterialRef tmpMatRef;
@@ -195,7 +194,7 @@ HRESULT Object::OBJ_LoadModelData(std::string path, ID3D12Device* device) {
 		splitData.clear();
 	}
 	fclose(modelFp);
-	
+
 	//decide how many materials will apply to meshes
 	for (int i = 0; i < matRef.size() - 1; i++) {
 		matRef[i].idxNum = matRef[i + 1].idxOffset - matRef[i].idxOffset;
@@ -207,6 +206,7 @@ HRESULT Object::OBJ_LoadModelData(std::string path, ID3D12Device* device) {
 		matFp = fopen(materialPath, "r");
 		if (matFp == NULL) {
 			std::cout << "cannnot open material file\n";
+			isMaterial = false;
 		}
 
 		else {
@@ -257,50 +257,39 @@ HRESULT Object::OBJ_LoadModelData(std::string path, ID3D12Device* device) {
 
 
 					//Texture Path
+					/*
+					Create TexturePath
+					Get the TexturePath from .obj File, but this path is not Loadable for this program, so we should Convert TexturePath to Loadable Path.
+					*/
 					else if (splitData[0] == "map_Ka") { //if ambient texture
-						std::string tmpMatPath;
-						/*
-						this process also combine blank-splitted data, but Path can have blank data, so process have to add blank after combien split data
-						*/
-						for (int i = 1; i < splitData.size(); i++) {
-							tmpMatPath += splitData[i];
-							tmpMatPath += " ";
+						for (int i = 1; i < splitData.size() - 1; i++) {
+							splitData[1] += " " + splitData[i + 1];
 						}
-						tmpMatPath.erase(tmpMatPath.end() - 1); //Loop add Extra add so remove it.
-
-						char tmpStr[MAX_PATH_LENGTH];
-
-						/*
-						tmpMatPath has modelDirName, so remove it and add modelPath.(because modelPath already has modelDirName)
-						*/
-						pc.GetAfterPathFromDirectoryName(tmpMatPath.c_str(), tmpStr, modelDirName);
-						pc.AddLeafPath(modelPath, tmpMat.ambTexPath, tmpStr);
+						int check = pc.PathFinder(splitData[1].c_str(), tmpMat.ambTexPath, modelPath);
+						if (check == -1) {
+							std::cout << "Error : there is no Texture File" << std::endl;
+						}
+						texCount++;
 					}
 					else if (splitData[0] == "map_Kd") { //if diffuse texture
-						//same process
-						std::string tmpMatPath;
-						for (int i = 1; i < splitData.size(); i++) {
-							tmpMatPath += splitData[i];
-							tmpMatPath += " ";
+						for (int i = 1; i < splitData.size() - 1; i++) {
+							splitData[1] += " " + splitData[i + 1];
 						}
-						tmpMatPath.erase(tmpMatPath.end() - 1);
-
-						char tmpStr[MAX_PATH_LENGTH];
-						pc.GetAfterPathFromDirectoryName(tmpMatPath.c_str(), tmpStr, modelDirName);
-						pc.AddLeafPath(modelPath, tmpMat.difTexPath, tmpStr);
+						int check = pc.PathFinder(splitData[1].c_str(), tmpMat.difTexPath, modelPath);
+						if (check == -1) {
+							std::cout << "Error : there is no Texture File" << std::endl;
+						}
+						texCount++;
 					}
 					else if (splitData[0] == "map_Ks") { //specular Texture
-						//same process
-						std::string tmpMatPath;
-						for (int i = 1; i < splitData.size(); i++) {
-							tmpMatPath += splitData[i];
-							tmpMatPath += " ";
+						for (int i = 1; i < splitData.size() - 1; i++) {
+							splitData[1] += " " + splitData[i + 1];
 						}
-						tmpMatPath.erase(tmpMatPath.end() - 1);
-						char tmpStr[MAX_PATH_LENGTH];
-
-						pc.GetAfterPathFromDirectoryName(tmpMatPath.c_str(), tmpStr, modelDirName);
-						pc.AddLeafPath(modelPath, tmpMat.speTexPath, tmpStr);
+						int check = pc.PathFinder(splitData[1].c_str(), tmpMat.speTexPath, modelPath);
+						if (check == -1) {
+							std::cout << "Error : there is no Texture File" << std::endl;
+						}
+						texCount++;
 					}
 				}
 			}
@@ -308,8 +297,8 @@ HRESULT Object::OBJ_LoadModelData(std::string path, ID3D12Device* device) {
 
 			fclose(matFp);
 
-			/*for (int i = 0; i < materials.size(); i++) {
-				std::cout << materials[i].materialName << std::endl;
+			for (int i = 0; i < materials.size(); i++) {
+				/*std::cout << materials[i].materialName << std::endl;
 				std::cout << "ambient : " << materials[i].mcb.ambient.x << " ";
 				std::cout << materials[i].mcb.ambient.y << " ";
 				std::cout << materials[i].mcb.ambient.z << std::endl;
@@ -319,12 +308,12 @@ HRESULT Object::OBJ_LoadModelData(std::string path, ID3D12Device* device) {
 				std::cout << "specular : " << materials[i].mcb.specular.x << " ";
 				std::cout << materials[i].mcb.specular.y << " ";
 				std::cout << materials[i].mcb.specular.z << " " << std::endl;
-				std::cout << "Nspecular : " << materials[i].mcb.Nspecular << std::endl;
+				std::cout << "Nspecular : " << materials[i].mcb.Nspecular << std::endl;*/
 				std::cout << "ambient texture : " << materials[i].ambTexPath << std::endl;
 				std::cout << "diffuse texture : " << materials[i].difTexPath << std::endl;
 				std::cout << "specular texture : " << materials[i].speTexPath << std::endl;
 				std::cout << std::endl;
-			}*/
+			}
 		}
 	}
 
@@ -442,13 +431,13 @@ HRESULT Object::OBJ_LoadModelData(std::string path, ID3D12Device* device) {
 
 	/*-----Create MaterialBuffer(this buffer create as ConstantBuffer, so this process needs to create Descriptor)-----*/
 	//Change ResourceDesc
-	resDesc.Width = sizeof(OBJMaterialCB) * materials.size();
+	if (isMaterial) resDesc.Width = sizeof(OBJMaterialCB) * materials.size();
+	else resDesc.Width = 1;
 	//CreateMaterialBuffer
 	hr = device->CreateCommittedResource(&heapProp, D3D12_HEAP_FLAG_NONE, &resDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&materialBuffer));
 	if (FAILED(hr)) {
 		std::cout << "Failed to Create materialBuffer" << std::endl;
 	}
-	std::cout << materialBuffer->GetDesc().Width << std::endl;
 	/*-----Map to MaterialData-----*/
 	OBJMaterialCB* matMap;
 	hr = materialBuffer->Map(0, nullptr, (void**)&matMap);
@@ -494,7 +483,6 @@ HRESULT Object::OBJ_LoadModelData(std::string path, ID3D12Device* device) {
 		handleOffset.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 		matCBVDesc.BufferLocation += sizeof(OBJMaterialCB);
 	}
-
 
 	std::cout << "Loading Model is finished(" << (clock() - loadTime) / 1000 << "sec)" << std::endl;
 	
@@ -603,4 +591,8 @@ void Object::Release() {
 	if (vertexBuffer) vertexBuffer->Release();
 	if (indexBuffer) indexBuffer->Release();
 	if (materialBuffer) materialBuffer->Release();
+	if (uploadBuffer) uploadBuffer->Release();
+	for (int i = 0; i < textureBuffer.size(); i++) {
+		if (textureBuffer[i]) textureBuffer[i]->Release();
+	}
 }

@@ -102,10 +102,15 @@ public:
 	std::vector<OBJMaterialRef> matRef;
 	std::vector<unsigned> indices;
 
+	//std::vector<ScratchImage> images; //use for TextureDatas
+	int texCount = 0; //Count of Texture
+
 	/*-----Use for DirectX Drawing-----*/
 	ID3D12Resource* vertexBuffer = nullptr;
 	ID3D12Resource* indexBuffer = nullptr;
 	ID3D12Resource* materialBuffer = nullptr;
+	ID3D12Resource* uploadBuffer = nullptr;
+	std::vector<ID3D12Resource*> textureBuffer;
 	D3D12_VERTEX_BUFFER_VIEW vbView = {};
 	D3D12_INDEX_BUFFER_VIEW ibView = {};
 	ID3D12DescriptorHeap* materialDescHeap = nullptr;

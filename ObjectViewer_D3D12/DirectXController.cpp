@@ -2,6 +2,7 @@
 #include"DirectXController.h"
 
 DirectXController::DirectXController() {
+	objs.resize(MAX_OBJECT_COUNT);
 }
 
 DirectXController::~DirectXController() {

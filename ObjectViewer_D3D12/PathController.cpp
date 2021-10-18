@@ -37,7 +37,7 @@ void PathController::RemoveLeafPath(const char* c1, char* path, size_t pathLengt
 		while (*path != '\\') {
 			path--;
 		}
-		*path = '\0';
+		*(path + 1) = '\0';
 	}
 }
 
@@ -50,8 +50,6 @@ void PathController::AddLeafPath(const char* c1, char* path, const char* addPath
 	else {
 		memcpy(path, c1, len);
 		path += len;
-		*path = '\\';
-		path++;
 		memcpy(path, addPath, addLen + 1);
 	}
 }
@@ -94,4 +92,46 @@ void PathController::GetAfterPathFromDirectoryName(const char* c1, char* path, c
 			memcpy(path, c1 + 1, cpySize);
 		}
 	}
+}
+
+int PathController::PathFinder(const char* defaultPath, char* path, const char* startDir, size_t pathLength) {
+	char checkDir[MAX_PATH_LENGTH];
+	HANDLE hFind;
+	WIN32_FIND_DATA fd;
+
+	int cpySize = 0;
+	bool isSlash = false; //check there is at least one back slash in Path, if there is no back slash, path stores defaultPath
+	while (*(defaultPath + cpySize) != '\0') {
+		cpySize++;
+		if (*(defaultPath + cpySize) == '\\') {
+			isSlash = true;
+			memcpy(checkDir, defaultPath, cpySize);
+			checkDir[cpySize] = '\0';
+
+			char checkPath[MAX_PATH_LENGTH];
+			AddLeafPath(startDir, checkPath, checkDir);
+
+			hFind = FindFirstFile(checkPath, &fd);
+			if (hFind != INVALID_HANDLE_VALUE) { //Find checkPath
+				AddLeafPath(startDir, path, defaultPath, MAX_PATH_LENGTH);
+				return 1;
+			}
+			defaultPath += cpySize + 1;
+			cpySize = 0;
+		}
+	}
+
+	if (!isSlash) {
+		memcpy(path, defaultPath, strlen(defaultPath) + 1);
+		
+		char checkPath[MAX_PATH_LENGTH];
+		AddLeafPath(startDir, checkPath, checkDir);
+
+		hFind = FindFirstFile(checkPath, &fd);
+		if (hFind != INVALID_HANDLE_VALUE) { //Find checkPath
+			AddLeafPath(startDir, path, defaultPath, MAX_PATH_LENGTH);
+			return 1;
+		}
+	}
+	else return -1;
 }

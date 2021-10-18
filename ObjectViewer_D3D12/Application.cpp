@@ -114,13 +114,25 @@ HRESULT Application::Initialize(WNDCLASSEX &mwcx, WNDCLASSEX &ewcx) {
 
 }
 
+void Application::DeleteObject() {
+	DxCon.objs.erase(DxCon.objs.begin() + objIndex);
+}
+
 void Application::Update() {
 	//1.Update Input
 	input.update();
 
-	//2.Load New Object(if Application need to Load a New Object)
+	//2-1. Delete Object(if Application need to Delete a Object)
+	if (isDeleteObject) {
+		DeleteObject(); //Delete Object[indexObject]
+		SendMessage(hDrop, CB_DELETESTRING, (WPARAM)objIndex, 0);
+		objIndex = -1;
+		isDeleteObject = false;
+		DxCon.LoadedObjCount--;
+	}
+
+	//2-2.Load New Object(if Application need to Load a New Object)
 	if (isLoadObject) {
-		std::cout << LoadObjPath << std::endl;
 		if ((SUCCEEDED(DxCon.LoadObject(LoadObjPath.c_str())))) { //if suceeded to load New Object,
 			//Send Message to ComboBox2 to Add New Object
 			PathController pc;
