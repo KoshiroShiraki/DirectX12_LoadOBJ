@@ -37,6 +37,11 @@ void Camera::update(XMFLOAT3 move, XMFLOAT3 rot, bool rotateFlag) {
 	rot.y *= cameraSensitivity;
 	rot.z *= cameraSensitivity;
 
+	pos.x += move.x;
+	pos.y += move.y;
+	pos.z += move.z;
+
+
 	XMMATRIX moveMat = XMMatrixTranslation(move.x / len, move.y / len, move.z / len);
 	XMMATRIX rotateYMat = XMMatrixIdentity();
 	XMMATRIX rotateXMat = XMMatrixIdentity();

@@ -633,6 +633,7 @@ HRESULT DirectXController::UpdateWorldMatrix(Object& obj, int objIndex) {
 
 HRESULT DirectXController::UpdateViewMatrix(Camera& camera, int objIndex) {
 	(mapMatrix + objIndex)->v = camera.viewMatrix; //set Camera's viewMatrix to mapMatrix
+	(mapMatrix + objIndex)->eye = camera.pos;
 
 	return S_OK;
 }

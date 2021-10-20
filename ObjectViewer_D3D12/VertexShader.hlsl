@@ -10,6 +10,7 @@ Output main(
 	output.normal = normalize(mul(w, normal));
 	output.vnormal = mul(v, output.normal);
 	output.uv = uv;
+	output.ray = normalize(pos.xyz - eye);
 
 	return output;
 }
