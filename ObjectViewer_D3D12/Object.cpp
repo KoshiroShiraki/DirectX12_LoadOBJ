@@ -510,11 +510,11 @@ HRESULT Object::OBJ_LoadModelData(std::string path, ID3D12Device* device) {
 		mbstowcs(path, materials[i].ambTexPath, MAX_PATH_LENGTH);
 		hr = OBJ_CreateTextureBuffer(path, MAX_PATH_LENGTH, i, 0, device);
 		mbstowcs(path, materials[i].difTexPath, MAX_PATH_LENGTH);
-		std::cout << materials[i].difTexPath << std::endl;
+		//std::cout << materials[i].difTexPath << std::endl;
 		hr = OBJ_CreateTextureBuffer(path, MAX_PATH_LENGTH, i, 1, device);
 		mbstowcs(path, materials[i].speTexPath, MAX_PATH_LENGTH);
 		hr = OBJ_CreateTextureBuffer(path, MAX_PATH_LENGTH, i, 2, device);
-		std::cout << materials[i].speTexPath << std::endl;
+		//std::cout << materials[i].speTexPath << std::endl;
 
 		//Create shaderResourceView
 		/*
