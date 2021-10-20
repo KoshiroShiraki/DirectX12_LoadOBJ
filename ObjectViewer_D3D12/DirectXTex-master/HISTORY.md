@@ -6,6 +6,73 @@ Release available for download on [GitHub](https://github.com/microsoft/DirectXT
 
 ## Release History
 
+### September 28, 2021
+* Minor code and project cleanup
+
+### August 1, 2021
+* Fixed weighting bug in custom linear filtering for wrap/mirroring
+* Added VS 2022 Preview projects
+* texconv: Made default output extension to be lower-case like most Windows applications
+* texconv: updated colorspace rotation names for -rotatecolor switch
+* texassemble, texconv: Order of operations fix for -swizzle using 0, 1
+* Minor code review
+
+### June 9, 2021
+* Minor bug fix for metadata behavior when using ``DDS_FLAGS_NO_16BPP`` flag for B5G6R5 content
+* texdiag: added ``-c`` and ``-t`` switches for diff command
+* texconv: Fixed bug in ``-m`` switch handling when resizing changes the max mipmap count
+* texconv et al: improved ``-flist`` switch to support wildcards and file exclusions
+* texconv et al: Added 'BGR' alias to ``-f`` switch for the B8G8R8X8_UNORM format
+* WICTextureLoader / DDSTextureLoader12 updated to use typed enum bitmask flags for loadFlags parameter
+* Minor code review
+
+### April 6, 2021
+* DDS reader updated to accept nVidia Texture Tool v1 single-channel and dual-channel files marked as RGB instead of LUMINANCE
+* Fixed TGA reader regression with files smaller than 26 bytes total
+* Removed use of ``CreateStreamOnHGlobal``, ``CreateStreamOverRandomAccessStream``, and ``SHCreateMemStream`` for WICToMemory functions
+* Fix for the DirectX 12 ``CaptureTexture`` for reserved and MSAA resources
+* Minor code and project cleanup
+* texassemble: added ``-stripmips`` switch
+* texassemble, texconv: the ``swizzle`` switch now accepts ``0`` and ``1`` values in swizzle masks
+* texconv: added "709toDisplayP3" and "DisplayP3to709" to ``-rotatecolor`` switch
+* texconv: Fixed ``-reconstructz`` for UNORM formats
+* texassemble, texconv, texdiag: Updated with  descriptions for HRESULT failure codes, and always uses exit code 1 on failure
+
+### January 9, 2021
+* Windows Subsystem for Linux support
+* Code review for improved conformance
+* CMake updated to support package install
+* texassemble: Merge command now supports ``-swizzle`` option
+* texconv: Updated with ``-r:keep`` and ``-swizzle`` options
+
+### November 11, 2020
+* Use ``SHCreateMemStream`` instead of ``CreateStreamOnHGlobal`` for Win32 on Windows 8.x or Windows 10
+* Updated D3DX12 internal copy with latest change from GitHub
+* Minor code and project cleanup
+
+### September 30, 2020
+* Added ``TGA_FLAGS`` [flags](https://github.com/microsoft/DirectXTex/wiki/TGA-I-O-Functions#related-flags) to TGA reader/writer to control RGB vs. BGR, handling for all zero alpha channels, and TGA 2.0 colorspace metadata
+  * TGA reader will now return a ``DXGI_FORMAT_*_SRGB`` format if TGA 2.0 colorspace metadata contains 2.2 or 2.4 gamma
+  * Added forwarders for existing non-flags TGA functions, so there are no breaking changes
+* ``R16_SNORM`` and ``R8_SNORM`` pixel write code updated to round instead of truncate to better match DirectXMath behavior
+* Fixed bug in standalone WICTextureLoader for DX11/DX12 that resulted in ``WINCODEC_ERR_INSUFFICIENTBUFFER`` for some resize requests
+* Added ``Ex`` variants for DDSTextureLoader/WICTextureLoader for DX9 to support loading resources for non-DEFAULT pools
+* Minor code and project cleanup
+
+### August 15, 2020
+* Added ``DDS_FLAGS_ALLOW_LARGE_FILES`` flag for DDS loader to allow textures with dimensions that are too big for Direct3D
+* Added ``FormatDataType`` function
+* Fixed bug with DX12 ``Capture`` with 'small alignment' textures
+* Code review and project updates
+* Added GDK projects
+* texassemble: updated with ``-fl`` switch for feature level based warning
+* texconv: updated with ``-reconstructz`` switch for BC5 compressed normal map view conversion
+
+### July 2, 2020
+* Minor warning fixes for VS 2019 (16.7)
+* CMake updates
+* texassemble: Fixed animated gif handling with transparency
+
 ### June 15, 2020
 * Code cleanup for some new VC++ 16.7 warnings and static code analysis
 * texconv: Updated with support for Portable Pix Map (ppm) & Portable Float Map (pfm) file formats

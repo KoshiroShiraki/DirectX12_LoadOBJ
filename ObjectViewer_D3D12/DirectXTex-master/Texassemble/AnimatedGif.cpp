@@ -4,10 +4,10 @@
 // Code for converting an animated GIF to a series of texture frames.
 //
 // References:
-//   https://code.msdn.microsoft.com/windowsapps/Windows-Imaging-Component-65abbc6a/
+//   https://github.com/microsoft/Windows-classic-samples/tree/main/Samples/Win7Samples/multimedia/wic/wicanimatedgif
 //   http://www.imagemagick.org/Usage/anim_basics/#dispose
 //
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 //
 // http://go.microsoft.com/fwlink/?LinkId=248926
@@ -24,7 +24,11 @@
 #define NOHELP
 #pragma warning(pop)
 
+#include <cstddef>
+#include <iterator>
 #include <memory>
+#include <new>
+#include <utility>
 #include <vector>
 
 #include <wrl/client.h>
@@ -154,7 +158,7 @@ HRESULT LoadAnimatedGif(const wchar_t* szFile, std::vector<std::unique_ptr<Scrat
         if (FAILED(hr))
             return hr;
 
-        hr = palette->GetColors(_countof(rgbColors), rgbColors, &actualColors);
+        hr = palette->GetColors(static_cast<UINT>(std::size(rgbColors)), rgbColors, &actualColors);
         if (FAILED(hr))
             return hr;
     }

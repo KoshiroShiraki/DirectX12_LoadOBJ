@@ -14,6 +14,12 @@ cbuffer Material : register(b1)
 	float Nspecular;
 };
 
+Texture2D<float4> ambtex : register(t0);
+Texture2D<float4> diftex : register(t1);
+Texture2D<float4> spetex : register(t2);
+
+SamplerState smp: register(s0);
+
 struct Output {
 	float4 svpos : SV_POSITION;
 	float4 normal : NORMAL0;

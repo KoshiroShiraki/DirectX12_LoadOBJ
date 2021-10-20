@@ -8,7 +8,7 @@
 // full-featured texture capture, DDS writer, and texture processing pipeline,
 // see the 'Texconv' sample and the 'DirectXTex' library.
 //
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 //
 // http://go.microsoft.com/fwlink/?LinkId=248926
@@ -17,9 +17,13 @@
 
 #include "ScreenGrab9.h"
 
-#include <assert.h>
 #include <algorithm>
+#include <cassert>
+#include <cstddef>
+#include <cstring>
 #include <memory>
+#include <new>
+#include <tuple>
 
 #include <wincodec.h>
 
@@ -222,7 +226,7 @@ namespace
             {
                 FILE_DISPOSITION_INFO info = {};
                 info.DeleteFile = TRUE;
-                (void)SetFileInformationByHandle(m_handle, FileDispositionInfo, &info, sizeof(info));
+                std::ignore = SetFileInformationByHandle(m_handle, FileDispositionInfo, &info, sizeof(info));
             }
         }
 
@@ -578,9 +582,11 @@ HRESULT DirectX::SaveDDSTextureToFile(
 
     // Create file
 #if (_WIN32_WINNT >= _WIN32_WINNT_WIN8)
-    ScopedHandle hFile(safe_handle(CreateFile2(fileName, GENERIC_WRITE | DELETE, 0, CREATE_ALWAYS, nullptr)));
+    ScopedHandle hFile(safe_handle(CreateFile2(fileName,
+        GENERIC_WRITE | DELETE, 0, CREATE_ALWAYS, nullptr)));
 #else
-    ScopedHandle hFile(safe_handle(CreateFileW(fileName, GENERIC_WRITE | DELETE, 0, nullptr, CREATE_ALWAYS, 0, nullptr)));
+    ScopedHandle hFile(safe_handle(CreateFileW(fileName,
+        GENERIC_WRITE | DELETE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr)));
 #endif
     if (!hFile)
         return HRESULT_FROM_WIN32(GetLastError());
@@ -826,7 +832,7 @@ HRESULT DirectX::SaveWICTextureToFile(
         VARIANT varValue;
         varValue.vt = VT_BOOL;
         varValue.boolVal = VARIANT_TRUE;
-        (void)props->Write(1, &option, &varValue);
+        std::ignore = props->Write(1, &option, &varValue);
     }
 
     if (setCustomProps)
@@ -918,12 +924,12 @@ HRESULT DirectX::SaveWICTextureToFile(
         if (memcmp(&guidContainerFormat, &GUID_ContainerFormatPng, sizeof(GUID)) == 0)
         {
             // Set Software name
-            (void)metawriter->SetMetadataByName(L"/tEXt/{str=Software}", &value);
+            std::ignore = metawriter->SetMetadataByName(L"/tEXt/{str=Software}", &value);
         }
         else
         {
             // Set Software name
-            (void)metawriter->SetMetadataByName(L"System.ApplicationName", &value);
+            std::ignore = metawriter->SetMetadataByName(L"System.ApplicationName", &value);
         }
     }
 

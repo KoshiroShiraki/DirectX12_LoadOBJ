@@ -1,5 +1,5 @@
 @echo off
-rem Copyright (c) Microsoft Corporation. All rights reserved.
+rem Copyright (c) Microsoft Corporation.
 rem Licensed under the MIT License.
 
 setlocal
@@ -7,7 +7,7 @@ set error=0
 
 set FXCOPTS=/nologo /WX /Ges /Zi /Zpc /Qstrip_reflect /Qstrip_debug
 
-set PCDXC="%WindowsSdkVerBinPath%\x86\fxc.exe"
+set PCFXC="%WindowsSdkVerBinPath%x86\fxc.exe"
 if exist %PCFXC% goto continue
 set PCFXC="%WindowsSdkBinPath%%WindowsSDKVersion%\x86\fxc.exe"
 if exist %PCFXC% goto continue
@@ -17,7 +17,11 @@ if exist %PCFXC% goto continue
 set PCFXC=fxc.exe
 
 :continue
-@if not exist Compiled mkdir Compiled
+if not defined CompileShadersOutput set CompileShadersOutput=Compiled
+set StrTrim=%CompileShadersOutput%##
+set StrTrim=%StrTrim: ##=%
+set CompileShadersOutput=%StrTrim:##=%
+@if not exist %CompileShadersOutput% mkdir %CompileShadersOutput%
 call :CompileShader BC7Encode TryMode456CS
 call :CompileShader BC7Encode TryMode137CS
 call :CompileShader BC7Encode TryMode02CS
@@ -39,7 +43,7 @@ endlocal
 exit /b
 
 :CompileShader
-set fxc=%PCFXC% %1.hlsl %FXCOPTS% /Tcs_4_0 /E%2 /FhCompiled\%1_%2.inc /FdCompiled\%1_%2.pdb /Vn%1_%2
+set fxc=%PCFXC% %1.hlsl %FXCOPTS% /Tcs_4_0 /E%2 /Fh%CompileShadersOutput%\%1_%2.inc /Fd%CompileShadersOutput%\%1_%2.pdb /Vn%1_%2
 echo.
 echo %fxc%
 %fxc% || set error=1

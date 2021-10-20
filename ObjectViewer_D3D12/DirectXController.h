@@ -22,7 +22,7 @@
 #pragma comment(lib,"DirectXTex.lib")
 #pragma warning(disable: 4996)
 
-#define MAX_OBJECT_COUNT 20
+#define MAX_OBJECT_COUNT 10
 
 struct MatrixData {
 	DirectX::XMMATRIX w;
@@ -31,6 +31,9 @@ struct MatrixData {
 	DirectX::XMFLOAT3 eye;
 
 	char padding[52];
+};
+struct testTexture {
+	unsigned char R, B, G, A;
 };
 
 class DirectXController {

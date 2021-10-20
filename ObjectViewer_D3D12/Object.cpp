@@ -30,6 +30,12 @@ OBJFaceData::OBJFaceData(const OBJFaceData& fd) {
 	}
 }
 
+OBJTextureBuffers::~OBJTextureBuffers() {
+	if (ambTexBuffer) ambTexBuffer->Release();
+	if (difTexBuffer) difTexBuffer->Release();
+	if (speTexBuffer) speTexBuffer->Release();
+}
+
 OBJMaterial::OBJMaterial() {
 	Init();
 }
@@ -42,6 +48,8 @@ void OBJMaterial::Init() {
 	ambTexPath[0] = '\0';
 	difTexPath[0] = '\0';
 	speTexPath[0] = '\0';
+
+	texCnt = 0;
 }
 
 OBJMaterialRef::OBJMaterialRef() {
@@ -207,6 +215,7 @@ HRESULT Object::OBJ_LoadModelData(std::string path, ID3D12Device* device) {
 		if (matFp == NULL) {
 			std::cout << "cannnot open material file\n";
 			isMaterial = false;
+			return E_FAIL;
 		}
 
 		else {
@@ -216,9 +225,11 @@ HRESULT Object::OBJ_LoadModelData(std::string path, ID3D12Device* device) {
 			int materialNum = 0;
 			OBJMaterial tmpMat;
 			std::string tmpName;
+
 			while (fgets(lineData, MAX_READ_LINEDATA, matFp) != NULL) {
 				OBJ_splitBlank(lineData, splitData);
 				if (splitData[0] == "newmtl") {
+
 					if (materialNum > 0) materials.push_back(tmpMat);
 					//push this tmpData to MaterialData, so application should reset tmpData every loop
 					tmpMat.Init();
@@ -269,7 +280,7 @@ HRESULT Object::OBJ_LoadModelData(std::string path, ID3D12Device* device) {
 						if (check == -1) {
 							std::cout << "Error : there is no Texture File" << std::endl;
 						}
-						texCount++;
+						tmpMat.texCnt++;
 					}
 					else if (splitData[0] == "map_Kd") { //if diffuse texture
 						for (int i = 1; i < splitData.size() - 1; i++) {
@@ -279,7 +290,7 @@ HRESULT Object::OBJ_LoadModelData(std::string path, ID3D12Device* device) {
 						if (check == -1) {
 							std::cout << "Error : there is no Texture File" << std::endl;
 						}
-						texCount++;
+						tmpMat.texCnt++;
 					}
 					else if (splitData[0] == "map_Ks") { //specular Texture
 						for (int i = 1; i < splitData.size() - 1; i++) {
@@ -289,7 +300,7 @@ HRESULT Object::OBJ_LoadModelData(std::string path, ID3D12Device* device) {
 						if (check == -1) {
 							std::cout << "Error : there is no Texture File" << std::endl;
 						}
-						texCount++;
+						tmpMat.texCnt++;
 					}
 				}
 			}
@@ -297,8 +308,8 @@ HRESULT Object::OBJ_LoadModelData(std::string path, ID3D12Device* device) {
 
 			fclose(matFp);
 
-			for (int i = 0; i < materials.size(); i++) {
-				/*std::cout << materials[i].materialName << std::endl;
+			/*for (int i = 0; i < materials.size(); i++) {
+				std::cout << materials[i].materialName << std::endl;
 				std::cout << "ambient : " << materials[i].mcb.ambient.x << " ";
 				std::cout << materials[i].mcb.ambient.y << " ";
 				std::cout << materials[i].mcb.ambient.z << std::endl;
@@ -308,12 +319,12 @@ HRESULT Object::OBJ_LoadModelData(std::string path, ID3D12Device* device) {
 				std::cout << "specular : " << materials[i].mcb.specular.x << " ";
 				std::cout << materials[i].mcb.specular.y << " ";
 				std::cout << materials[i].mcb.specular.z << " " << std::endl;
-				std::cout << "Nspecular : " << materials[i].mcb.Nspecular << std::endl;*/
+				std::cout << "Nspecular : " << materials[i].mcb.Nspecular << std::endl;
 				std::cout << "ambient texture : " << materials[i].ambTexPath << std::endl;
 				std::cout << "diffuse texture : " << materials[i].difTexPath << std::endl;
 				std::cout << "specular texture : " << materials[i].speTexPath << std::endl;
 				std::cout << std::endl;
-			}
+			}*/
 		}
 	}
 
@@ -330,8 +341,6 @@ HRESULT Object::OBJ_LoadModelData(std::string path, ID3D12Device* device) {
 		/*
 		face data is define one face in one line.
 		*/
-
-		int splitData[3];
 		for (int j = 0; j < fd[i].vertexCnt; j++) {
 			OBJVertex tmpVert;
 
@@ -483,11 +492,113 @@ HRESULT Object::OBJ_LoadModelData(std::string path, ID3D12Device* device) {
 		handleOffset.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 		matCBVDesc.BufferLocation += sizeof(OBJMaterialCB);
 	}
+	/*-----LoadTexture and CreateTextureBuffer-----*/
+	//Create DescriptorHeap
+	D3D12_DESCRIPTOR_HEAP_DESC texHeapDesc = {};
+	texHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	texHeapDesc.NodeMask = 0;
+	texHeapDesc.NumDescriptors = materials.size() * 3; //every materials has three texture(amb,dif,spe)
+	texHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	hr = device->CreateDescriptorHeap(&texHeapDesc, IID_PPV_ARGS(&textureDescHeap));
+	if (FAILED(hr)) {
+		std::cout << "Error : Cannnot Create DescriptorHeap" << std::endl;
+		return hr;
+	}
+	texBuffers.resize(materials.size());
+	for (int i = 0; i < materials.size(); i++) {
+		wchar_t path[MAX_PATH_LENGTH];
+		mbstowcs(path, materials[i].ambTexPath, MAX_PATH_LENGTH);
+		hr = OBJ_CreateTextureBuffer(path, MAX_PATH_LENGTH, i, 0, device);
+		mbstowcs(path, materials[i].difTexPath, MAX_PATH_LENGTH);
+		hr = OBJ_CreateTextureBuffer(path, MAX_PATH_LENGTH, i, 1, device);
+		mbstowcs(path, materials[i].speTexPath, MAX_PATH_LENGTH);
+		hr = OBJ_CreateTextureBuffer(path, MAX_PATH_LENGTH, i, 2, device);
+
+		//Create shaderResourceView
+		/*
+		ShaderResourceView must be Created whether Texture load completed or not
+		*/
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+		srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		srvDesc.Texture2D.MipLevels = 1;
+		D3D12_CPU_DESCRIPTOR_HANDLE heapH = textureDescHeap->GetCPUDescriptorHandleForHeapStart();
+		heapH.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * (3 * i); //StartPosition
+		//Create 3 Descriptor
+		device->CreateShaderResourceView(texBuffers[i].ambTexBuffer, &srvDesc, heapH);
+		heapH.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		device->CreateShaderResourceView(texBuffers[i].difTexBuffer, &srvDesc, heapH);
+		heapH.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		device->CreateShaderResourceView(texBuffers[i].speTexBuffer, &srvDesc, heapH);
+	}
 
 	std::cout << "Loading Model is finished(" << (clock() - loadTime) / 1000 << "sec)" << std::endl;
 	
 	std::cout << "-------------------------\n";
 
+	return S_OK;
+}
+
+HRESULT Object::OBJ_CreateTextureBuffer(const wchar_t* pathName, size_t pathLength, int materialNum, int textureNum, ID3D12Device* device) {
+	HRESULT hr;
+	
+	ScratchImage sImg = {};
+	TexMetadata md = {};
+
+	hr = LoadFromWICFile(pathName, WIC_FLAGS_NONE, &md, sImg);
+	if (SUCCEEDED(hr)) {
+		const Image* img = sImg.GetImage(0, 0, 0);
+
+		/*-----Create TextureBuffer-----*/
+		//Set HeapProperty
+		D3D12_HEAP_PROPERTIES heapProp = {};
+		heapProp.Type = D3D12_HEAP_TYPE_CUSTOM;
+		heapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
+		heapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
+		heapProp.CreationNodeMask = 0;
+		heapProp.VisibleNodeMask = 0;
+		//describe Resouce
+		D3D12_RESOURCE_DESC resDesc = {};
+		resDesc.Format = md.format;
+		resDesc.Width = md.width;
+		resDesc.Height = md.height;
+		resDesc.DepthOrArraySize = md.arraySize;
+		resDesc.SampleDesc.Count = 1;
+		resDesc.SampleDesc.Quality = 0;
+		resDesc.MipLevels = md.mipLevels;
+		resDesc.Dimension = static_cast<D3D12_RESOURCE_DIMENSION>(md.dimension);
+		resDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+		resDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+		switch (textureNum) { //Create Texture Buffer and Write Data to Buffer
+			/*
+			CAUTION :
+			this method what will be used in this process is not recommended, but I use this method because i have no time
+			*/
+		case 0:
+			hr = device->CreateCommittedResource(&heapProp, D3D12_HEAP_FLAG_NONE, &resDesc, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, nullptr, IID_PPV_ARGS(&texBuffers[materialNum].ambTexBuffer));
+			if (FAILED(hr)) std::cout << "Error : Failed to Create TextureBuffer" << std::endl;
+			else {
+				hr = texBuffers[materialNum].ambTexBuffer->WriteToSubresource(0, nullptr, img->pixels, img->rowPitch, img->slicePitch);
+			}
+			break;
+		case 1:
+			hr = device->CreateCommittedResource(&heapProp, D3D12_HEAP_FLAG_NONE, &resDesc, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, nullptr, IID_PPV_ARGS(&texBuffers[materialNum].difTexBuffer));
+			if (FAILED(hr)) std::cout << "Error : Failed to Create TextureBuffer" << std::endl;
+			else {
+				hr = texBuffers[materialNum].difTexBuffer->WriteToSubresource(0, nullptr, img->pixels, img->rowPitch, img->slicePitch);
+			}
+			break;
+		case 2:
+			hr = device->CreateCommittedResource(&heapProp, D3D12_HEAP_FLAG_NONE, &resDesc, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, nullptr, IID_PPV_ARGS(&texBuffers[materialNum].speTexBuffer));
+			if (FAILED(hr)) std::cout << "Error : Failed to Create TextureBuffer" << std::endl;
+			else {
+				hr = texBuffers[materialNum].speTexBuffer->WriteToSubresource(0, nullptr, img->pixels, img->rowPitch, img->slicePitch);
+			}
+			break;
+		}
+	}
+	
 	return S_OK;
 }
 
@@ -591,8 +702,5 @@ void Object::Release() {
 	if (vertexBuffer) vertexBuffer->Release();
 	if (indexBuffer) indexBuffer->Release();
 	if (materialBuffer) materialBuffer->Release();
-	if (uploadBuffer) uploadBuffer->Release();
-	for (int i = 0; i < textureBuffer.size(); i++) {
-		if (textureBuffer[i]) textureBuffer[i]->Release();
-	}
+	if (textureDescHeap)textureDescHeap->Release();
 }

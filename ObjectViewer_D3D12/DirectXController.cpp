@@ -53,6 +53,7 @@ HRESULT DirectXController::InitD3D(HWND hwnd) {
 		hr = D3D12CreateDevice(tmpAdapter, lv, IID_PPV_ARGS(&device));
 		if (SUCCEEDED(hr)) {
 			featureLevel = lv;
+			std::cout << lv << std::endl;
 			break;
 		}
 	}
@@ -192,6 +193,7 @@ this function used for only Create ConstantBuffer
 */
 HRESULT DirectXController::CreateResources(Camera &camera) {
 	HRESULT hr;
+
 #ifdef _DEBUG
 	EnableDebugLayer();
 #endif
@@ -334,7 +336,7 @@ HRESULT DirectXController::SetGraphicsPipeLine() {
 	samplerDesc.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	samplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
 	//Create Descriptor Table
-	D3D12_DESCRIPTOR_RANGE desTbRange[2] = {};
+	D3D12_DESCRIPTOR_RANGE desTbRange[3] = {};
 	//DescriptorRange for ConstantBuffer
 	desTbRange[0].NumDescriptors = 1;
 	desTbRange[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
@@ -345,21 +347,33 @@ HRESULT DirectXController::SetGraphicsPipeLine() {
 	desTbRange[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
 	desTbRange[1].BaseShaderRegister = 1;
 	desTbRange[1].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+	//DescriptorRange for TextureBuffer
+	desTbRange[2].NumDescriptors = 3;
+	desTbRange[2].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	desTbRange[2].BaseShaderRegister = 0;
+	desTbRange[2].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 	//Create RootParameter
-	D3D12_ROOT_PARAMETER rootParam[2] = {};
+	D3D12_ROOT_PARAMETER rootParam[3] = {};
 	rootParam[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootParam[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 	rootParam[0].DescriptorTable.pDescriptorRanges = &desTbRange[0];
 	rootParam[0].DescriptorTable.NumDescriptorRanges = 1;
+
 	rootParam[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootParam[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	rootParam[1].DescriptorTable.pDescriptorRanges = &desTbRange[1];
 	rootParam[1].DescriptorTable.NumDescriptorRanges = 1;
+	
+	rootParam[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParam[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	rootParam[2].DescriptorTable.pDescriptorRanges = &desTbRange[2];
+	rootParam[2].DescriptorTable.NumDescriptorRanges = 1;
+
 	//describe RootSignature
 	D3D12_ROOT_SIGNATURE_DESC rootSigDesc = {};
 	rootSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 	rootSigDesc.pParameters = rootParam;
-	rootSigDesc.NumParameters = 2;
+	rootSigDesc.NumParameters = 3;
 	rootSigDesc.pStaticSamplers = &samplerDesc;
 	rootSigDesc.NumStaticSamplers = 1;
 	hr = D3D12SerializeRootSignature(&rootSigDesc, D3D_ROOT_SIGNATURE_VERSION_1_0, &rootSig, &errorBlob);
@@ -433,10 +447,13 @@ HRESULT DirectXController::SetGraphicsPipeLine() {
 		return hr;
 	}
 
+
+
 	return S_OK;
 }
 
-HRESULT DirectXController::Draw(Camera &camera) {
+HRESULT DirectXController::Draw(Camera& camera) {
+
 	//Set ViewPort
 	D3D12_VIEWPORT vp = {};
 	vp.Width = window_Width;
@@ -472,7 +489,6 @@ HRESULT DirectXController::Draw(Camera &camera) {
 
 	cmdList->SetPipelineState(PipeLineState);
 
-
 	//Set RenderTargetBufferView and Depth/StencilBUfferView
 	auto rtvH = rtvHeap->GetCPUDescriptorHandleForHeapStart();
 	auto dsvH = dsvHeap->GetCPUDescriptorHandleForHeapStart();
@@ -499,6 +515,7 @@ HRESULT DirectXController::Draw(Camera &camera) {
 
 	if (LoadedObjCount > 0) {
 		for (int objCnt = 0; objCnt < LoadedObjCount; objCnt++) {
+
 			D3D12_GPU_DESCRIPTOR_HANDLE tmpHandle;
 
 			UpdateWorldMatrix(objs[objCnt], objCnt);
@@ -512,10 +529,16 @@ HRESULT DirectXController::Draw(Camera &camera) {
 			cmdList->IASetVertexBuffers(0, 1, &objs[objCnt].vbView);
 			cmdList->IASetIndexBuffer(&objs[objCnt].ibView);
 
-			//Switch MaterialBuffer for Each Vertices
-			cmdList->SetDescriptorHeaps(1, &objs[objCnt].materialDescHeap);
+			//Switch MaterialBuffer and TextureBuffer for Each Vertices
 			heapHMat = objs[objCnt].materialDescHeap->GetGPUDescriptorHandleForHeapStart();
 			for (int i = 0; i < objs[objCnt].matRef.size(); i++) {
+				//set Texture
+				cmdList->SetDescriptorHeaps(1, &objs[objCnt].textureDescHeap); //texture
+				D3D12_GPU_DESCRIPTOR_HANDLE heapH = objs[objCnt].textureDescHeap->GetGPUDescriptorHandleForHeapStart();
+				heapH.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * (3 * objs[objCnt].matRef[i].matID);
+				cmdList->SetGraphicsRootDescriptorTable(2, heapH);
+				//set Material
+				cmdList->SetDescriptorHeaps(1, &objs[objCnt].materialDescHeap); //material
 				tmpHandle.ptr = heapHMat.ptr + device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * objs[objCnt].matRef[i].matID;
 				cmdList->SetGraphicsRootDescriptorTable(1, tmpHandle);
 				cmdList->DrawIndexedInstanced(objs[objCnt].matRef[i].idxNum, 1, objs[objCnt].matRef[i].idxOffset, 0, 0);
@@ -527,7 +550,7 @@ HRESULT DirectXController::Draw(Camera &camera) {
 	BarrierDesc.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
 	cmdList->ResourceBarrier(1, &BarrierDesc);
 
-	//Close CommandList (Do not Forget!)
+	//Close CommandList
 	cmdList->Close();
 	//Execute Command
 	ID3D12CommandList* cmdlists[] = { cmdList };

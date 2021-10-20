@@ -3,7 +3,7 @@
 //  
 // Utility header with helpers for implementing image filters
 //
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 //-------------------------------------------------------------------------------------
 
@@ -76,6 +76,8 @@ inline void _CreateLinearFilter(_In_ size_t source, _In_ size_t dest, _In_ bool 
         ptrdiff_t isrcB = ptrdiff_t(srcB);
         ptrdiff_t isrcA = isrcB - 1;
 
+        float weight = 1.0f + float(isrcB) - srcB;
+
         if (isrcA < 0)
         {
             isrcA = (wrap) ? (ptrdiff_t(source) - 1) : 0;
@@ -85,8 +87,6 @@ inline void _CreateLinearFilter(_In_ size_t source, _In_ size_t dest, _In_ bool 
         {
             isrcB = (wrap) ? 0 : (ptrdiff_t(source) - 1);
         }
-
-        float weight = 1.0f + float(isrcB) - srcB;
 
         auto& entry = lf[u];
         entry.u0 = size_t(isrcA);

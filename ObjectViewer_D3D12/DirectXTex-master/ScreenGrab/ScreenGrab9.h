@@ -8,7 +8,7 @@
 // full-featured texture capture, DDS writer, and texture processing pipeline,
 // see the 'Texconv' sample and the 'DirectXTex' library.
 //
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 //
 // http://go.microsoft.com/fwlink/?LinkId=248926
@@ -23,7 +23,12 @@
 
 #include <d3d9.h>
 
+#ifdef NTDDI_WIN10_FE
+#include <ocidl.h>
+#else
 #include <OCIdl.h>
+#endif
+
 #include <functional>
 
 

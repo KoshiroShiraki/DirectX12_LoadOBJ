@@ -61,6 +61,8 @@ struct OBJMaterial {
 
 	std::string materialName;
 
+	int texCnt = 0;
+
 	char ambTexPath[MAX_PATH_LENGTH];
 	char difTexPath[MAX_PATH_LENGTH];
 	char speTexPath[MAX_PATH_LENGTH];
@@ -79,6 +81,18 @@ struct OBJFaceData {
 	~OBJFaceData();
 
 	OBJFaceData(const OBJFaceData& fd);
+};
+struct ImageData {
+	size_t rowPitch;
+	DXGI_FORMAT format;
+};
+
+struct OBJTextureBuffers {
+	ID3D12Resource* ambTexBuffer = nullptr;
+	ID3D12Resource* difTexBuffer = nullptr;
+	ID3D12Resource* speTexBuffer = nullptr;
+
+	~OBJTextureBuffers();
 };
 
 class Object {
@@ -102,18 +116,17 @@ public:
 	std::vector<OBJMaterialRef> matRef;
 	std::vector<unsigned> indices;
 
-	//std::vector<ScratchImage> images; //use for TextureDatas
 	int texCount = 0; //Count of Texture
 
 	/*-----Use for DirectX Drawing-----*/
 	ID3D12Resource* vertexBuffer = nullptr;
 	ID3D12Resource* indexBuffer = nullptr;
 	ID3D12Resource* materialBuffer = nullptr;
-	ID3D12Resource* uploadBuffer = nullptr;
-	std::vector<ID3D12Resource*> textureBuffer;
+	std::vector<OBJTextureBuffers> texBuffers;
 	D3D12_VERTEX_BUFFER_VIEW vbView = {};
 	D3D12_INDEX_BUFFER_VIEW ibView = {};
 	ID3D12DescriptorHeap* materialDescHeap = nullptr;
+	ID3D12DescriptorHeap* textureDescHeap = nullptr;
 	/*--------------------------------*/
 
 	HRESULT OBJ_LoadModelData(std::string path, ID3D12Device* device);
@@ -121,6 +134,7 @@ public:
 	void OBJ_splitBlank(std::string str, std::vector<std::string>& data);
 	void OBJ_splitSlash(std::string str, int* data);
 	int findMaterialIndex(std::vector<OBJMaterialRef> mr, std::string material);
+	HRESULT OBJ_CreateTextureBuffer(const wchar_t* pathName, size_t pathLength, int materialNum, int textureNum, ID3D12Device* device);
 	template<typename T>
 	void vectorRelease(std::vector<T>& vec);
 	void Release();

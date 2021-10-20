@@ -1,9 +1,9 @@
 //-------------------------------------------------------------------------------------
 // BCDirectCompute.cpp
-//  
+//
 // Direct3D 11 Compute Shader BC Compressor
 //
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 //-------------------------------------------------------------------------------------
 
@@ -20,13 +20,13 @@ using Microsoft::WRL::ComPtr;
 
 namespace
 {
-    #include "Shaders\Compiled\BC7Encode_EncodeBlockCS.inc"
-    #include "Shaders\Compiled\BC7Encode_TryMode02CS.inc"
-    #include "Shaders\Compiled\BC7Encode_TryMode137CS.inc"
-    #include "Shaders\Compiled\BC7Encode_TryMode456CS.inc"
-    #include "Shaders\Compiled\BC6HEncode_EncodeBlockCS.inc"
-    #include "Shaders\Compiled\BC6HEncode_TryModeG10CS.inc"
-    #include "Shaders\Compiled\BC6HEncode_TryModeLE10CS.inc"
+    #include "BC7Encode_EncodeBlockCS.inc"
+    #include "BC7Encode_TryMode02CS.inc"
+    #include "BC7Encode_TryMode137CS.inc"
+    #include "BC7Encode_TryMode456CS.inc"
+    #include "BC6HEncode_EncodeBlockCS.inc"
+    #include "BC6HEncode_TryModeG10CS.inc"
+    #include "BC6HEncode_TryModeLE10CS.inc"
 
     struct BufferBC6HBC7
     {
@@ -104,7 +104,7 @@ HRESULT GPUCompressBC::Initialize(ID3D11Device* pDevice)
     if (fl < D3D_FEATURE_LEVEL_10_0)
     {
         // DirectCompute not supported on Feature Level 9.x hardware
-        return HRESULT_FROM_WIN32(ERROR_NOT_SUPPORTED);
+        return HRESULT_E_NOT_SUPPORTED;
     }
 
     if (fl < D3D_FEATURE_LEVEL_11_0)
@@ -119,7 +119,7 @@ HRESULT GPUCompressBC::Initialize(ID3D11Device* pDevice)
 
         if (!hwopts.ComputeShaders_Plus_RawAndStructuredBuffers_Via_Shader_4_x)
         {
-            return HRESULT_FROM_WIN32(ERROR_NOT_SUPPORTED);
+            return HRESULT_E_NOT_SUPPORTED;
         }
     }
 
@@ -222,7 +222,7 @@ HRESULT GPUCompressBC::Prepare(size_t width, size_t height, uint32_t flags, DXGI
 
     default:
         m_bcformat = m_srcformat = DXGI_FORMAT_UNKNOWN;
-        return HRESULT_FROM_WIN32(ERROR_NOT_SUPPORTED);
+        return HRESULT_E_NOT_SUPPORTED;
     }
 
     m_bcformat = format;
@@ -234,7 +234,7 @@ HRESULT GPUCompressBC::Prepare(size_t width, size_t height, uint32_t flags, DXGI
     // Create structured buffers
     uint64_t sizeInBytes = uint64_t(num_blocks) * sizeof(BufferBC6HBC7);
     if (sizeInBytes >= UINT32_MAX)
-        return HRESULT_FROM_WIN32(ERROR_ARITHMETIC_OVERFLOW);
+        return HRESULT_E_ARITHMETIC_OVERFLOW;
 
     auto bufferSize = static_cast<size_t>(sizeInBytes);
 

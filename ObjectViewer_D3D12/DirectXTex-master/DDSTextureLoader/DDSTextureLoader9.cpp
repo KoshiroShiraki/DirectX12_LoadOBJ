@@ -7,7 +7,7 @@
 // a full-featured DDS file reader, writer, and texture processing pipeline see
 // the 'Texconv' sample and the 'DirectXTex' library.
 //
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 //
 // http://go.microsoft.com/fwlink/?LinkId=248926
@@ -18,9 +18,11 @@
 
 #include <d3d9types.h>
 
-#include <assert.h>
 #include <algorithm>
+#include <cassert>
+#include <cstring>
 #include <memory>
+#include <new>
 
 #include <wrl/client.h>
 
@@ -126,6 +128,8 @@ namespace
             return E_POINTER;
         }
 
+        *bitSize = 0;
+
         if (ddsDataSize > UINT32_MAX)
         {
             return E_FAIL;
@@ -183,6 +187,8 @@ namespace
             return E_POINTER;
         }
 
+        *bitSize = 0;
+
         // open the file
 #if (_WIN32_WINNT >= _WIN32_WINNT_WIN8)
         ScopedHandle hFile(safe_handle(CreateFile2(fileName,
@@ -232,19 +238,21 @@ namespace
         }
 
         // read the data in
-        DWORD BytesRead = 0;
+        DWORD bytesRead = 0;
         if (!ReadFile(hFile.get(),
             ddsData.get(),
             fileInfo.EndOfFile.LowPart,
-            &BytesRead,
+            &bytesRead,
             nullptr
         ))
         {
+            ddsData.reset();
             return HRESULT_FROM_WIN32(GetLastError());
         }
 
-        if (BytesRead < fileInfo.EndOfFile.LowPart)
+        if (bytesRead < fileInfo.EndOfFile.LowPart)
         {
+            ddsData.reset();
             return E_FAIL;
         }
 
@@ -252,6 +260,7 @@ namespace
         auto dwMagicNumber = *reinterpret_cast<const uint32_t*>(ddsData.get());
         if (dwMagicNumber != DDS_MAGIC)
         {
+            ddsData.reset();
             return E_FAIL;
         }
 
@@ -261,6 +270,7 @@ namespace
         if (hdr->size != sizeof(DDS_HEADER) ||
             hdr->ddspf.size != sizeof(DDS_PIXELFORMAT))
         {
+            ddsData.reset();
             return E_FAIL;
         }
 
@@ -269,6 +279,7 @@ namespace
             (MAKEFOURCC('D', 'X', '1', '0') == hdr->ddspf.fourCC))
         {
             // We don't support the new DX10 header for Direct3D 9
+            ddsData.reset();
             return HRESULT_FROM_WIN32(ERROR_NOT_SUPPORTED);
         }
 
@@ -574,34 +585,8 @@ namespace
                 {
                     return D3DFMT_A8R3G3B2;
                 }
-                break;
 
-            case 8:
-                if (ISBITMASK(0xe0, 0x1c, 0x03, 0))
-                {
-                    return D3DFMT_R3G3B2;
-                }
-
-                // Paletted texture formats are typically not supported on modern video cards aka D3DFMT_P8, D3DFMT_A8P8
-                break;
-            }
-        }
-        else if (ddpf.flags & DDS_LUMINANCE)
-        {
-            if (8 == ddpf.RGBBitCount)
-            {
-                if (ISBITMASK(0x0f, 0, 0, 0xf0))
-                {
-                    return D3DFMT_A4L4;
-                }
-                if (ISBITMASK(0xff, 0, 0, 0))
-                {
-                    return D3DFMT_L8;
-                }
-            }
-
-            if (16 == ddpf.RGBBitCount)
-            {
+                // NVTT versions 1.x wrote these as RGB instead of LUMINANCE
                 if (ISBITMASK(0xffff, 0, 0, 0))
                 {
                     return D3DFMT_L16;
@@ -610,7 +595,53 @@ namespace
                 {
                     return D3DFMT_A8L8;
                 }
+                break;
 
+            case 8:
+                if (ISBITMASK(0xe0, 0x1c, 0x03, 0))
+                {
+                    return D3DFMT_R3G3B2;
+                }
+
+                // NVTT versions 1.x wrote these as RGB instead of LUMINANCE
+                if (ISBITMASK(0xff, 0, 0, 0))
+                {
+                    return D3DFMT_L8;
+                }
+
+                // Paletted texture formats are typically not supported on modern video cards aka D3DFMT_P8, D3DFMT_A8P8
+                break;
+            }
+        }
+        else if (ddpf.flags & DDS_LUMINANCE)
+        {
+            switch (ddpf.RGBBitCount)
+            {
+            case 16:
+                if (ISBITMASK(0xffff, 0, 0, 0))
+                {
+                    return D3DFMT_L16;
+                }
+                if (ISBITMASK(0x00ff, 0, 0, 0xff00))
+                {
+                    return D3DFMT_A8L8;
+                }
+                break;
+
+            case 8:
+                if (ISBITMASK(0x0f, 0, 0, 0xf0))
+                {
+                    return D3DFMT_A4L4;
+                }
+                if (ISBITMASK(0xff, 0, 0, 0))
+                {
+                    return D3DFMT_L8;
+                }
+                if (ISBITMASK(0x00ff, 0, 0, 0xff00))
+                {
+                    return D3DFMT_A8L8; // Some DDS writers assume the bitcount should be 8 instead of 16
+                }
+                break;
             }
         }
         else if (ddpf.flags & DDS_ALPHA)
@@ -622,16 +653,9 @@ namespace
         }
         else if (ddpf.flags & DDS_BUMPDUDV)
         {
-            if (16 == ddpf.RGBBitCount)
+            switch (ddpf.RGBBitCount)
             {
-                if (ISBITMASK(0x00ff, 0xff00, 0, 0))
-                {
-                    return D3DFMT_V8U8;
-                }
-            }
-
-            if (32 == ddpf.RGBBitCount)
-            {
+            case 32:
                 if (ISBITMASK(0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000))
                 {
                     return D3DFMT_Q8W8V8U8;
@@ -644,24 +668,33 @@ namespace
                 {
                     return D3DFMT_A2W10V10U10;
                 }
+                break;
+
+            case 16:
+                if (ISBITMASK(0x00ff, 0xff00, 0, 0))
+                {
+                    return D3DFMT_V8U8;
+                }
+                break;
             }
         }
         else if (ddpf.flags & DDS_BUMPLUMINANCE)
         {
-            if (16 == ddpf.RGBBitCount)
+            switch (ddpf.RGBBitCount)
             {
-                if (ISBITMASK(0x001f, 0x03e0, 0xfc00, 0))
-                {
-                    return D3DFMT_L6V5U5;
-                }
-            }
-
-            if (32 == ddpf.RGBBitCount)
-            {
+            case 32:
                 if (ISBITMASK(0x000000ff, 0x0000ff00, 0x00ff0000, 0))
                 {
                     return D3DFMT_X8L8V8U8;
                 }
+                break;
+
+            case 16:
+                if (ISBITMASK(0x001f, 0x03e0, 0xfc00, 0))
+                {
+                    return D3DFMT_L6V5U5;
+                }
+                break;
             }
         }
         else if (ddpf.flags & DDS_FOURCC)
@@ -733,6 +766,8 @@ namespace
         _In_ const DDS_HEADER* header,
         _In_reads_bytes_(bitSize) const uint8_t* bitData,
         _In_ size_t bitSize,
+        _In_ DWORD usage,
+        _In_ D3DPOOL pool,
         _Outptr_ LPDIRECT3DBASETEXTURE9* texture,
         bool generateMipsIfMissing) noexcept
     {
@@ -776,15 +811,22 @@ namespace
             // Create the volume texture (let the runtime do the validation)
             ComPtr<IDirect3DVolumeTexture9> pTexture;
             hr = device->CreateVolumeTexture(iWidth, iHeight, iDepth, iMipCount,
-                0, fmt, D3DPOOL_DEFAULT, pTexture.GetAddressOf(), nullptr);
+                usage, fmt, pool, pTexture.GetAddressOf(), nullptr);
             if (FAILED(hr))
                 return hr;
 
             ComPtr<IDirect3DVolumeTexture9> pStagingTexture;
-            hr = device->CreateVolumeTexture(iWidth, iHeight, iDepth, iMipCount,
-                0, fmt, D3DPOOL_SYSTEMMEM, pStagingTexture.GetAddressOf(), nullptr);
-            if (FAILED(hr))
-                return hr;
+            if (pool == D3DPOOL_DEFAULT)
+            {
+                hr = device->CreateVolumeTexture(iWidth, iHeight, iDepth, iMipCount,
+                    0u, fmt, D3DPOOL_SYSTEMMEM, pStagingTexture.GetAddressOf(), nullptr);
+                if (FAILED(hr))
+                    return hr;
+            }
+            else
+            {
+                pStagingTexture = pTexture;
+            }
 
             // Lock, fill, unlock
             size_t NumBytes = 0;
@@ -841,9 +883,12 @@ namespace
                     iDepth = 1;
             }
 
-            hr = device->UpdateTexture(pStagingTexture.Get(), pTexture.Get());
-            if (FAILED(hr))
-                return hr;
+            if (pool == D3DPOOL_DEFAULT)
+            {
+                hr = device->UpdateTexture(pStagingTexture.Get(), pTexture.Get());
+                if (FAILED(hr))
+                    return hr;
+            }
 
             *texture = pTexture.Detach();
         }
@@ -864,15 +909,22 @@ namespace
             // Create the cubemap (let the runtime do the validation)
             ComPtr<IDirect3DCubeTexture9> pTexture;
             hr = device->CreateCubeTexture(iWidth, iMipCount,
-                0, fmt, D3DPOOL_DEFAULT, pTexture.GetAddressOf(), nullptr);
+                usage, fmt, pool, pTexture.GetAddressOf(), nullptr);
             if (FAILED(hr))
                 return hr;
 
             ComPtr<IDirect3DCubeTexture9> pStagingTexture;
-            hr = device->CreateCubeTexture(iWidth, iMipCount,
-                0, fmt, D3DPOOL_SYSTEMMEM, pStagingTexture.GetAddressOf(), nullptr);
-            if (FAILED(hr))
-                return hr;
+            if (pool == D3DPOOL_DEFAULT)
+            {
+                hr = device->CreateCubeTexture(iWidth, iMipCount,
+                    0u, fmt, D3DPOOL_SYSTEMMEM, pStagingTexture.GetAddressOf(), nullptr);
+                if (FAILED(hr))
+                    return hr;
+            }
+            else
+            {
+                pStagingTexture = pTexture;
+            }
 
             // Lock, fill, unlock
             size_t NumBytes = 0;
@@ -926,9 +978,12 @@ namespace
                 }
             }
 
-            hr = device->UpdateTexture(pStagingTexture.Get(), pTexture.Get());
-            if (FAILED(hr))
-                return hr;
+            if (pool == D3DPOOL_DEFAULT)
+            {
+                hr = device->UpdateTexture(pStagingTexture.Get(), pTexture.Get());
+                if (FAILED(hr))
+                    return hr;
+            }
 
             *texture = pTexture.Detach();
         }
@@ -941,19 +996,28 @@ namespace
             }
 
             // Create the texture (let the runtime do the validation)
+            if (generateMipsIfMissing)
+                usage |= D3DUSAGE_AUTOGENMIPMAP;
+
             ComPtr<IDirect3DTexture9> pTexture;
             hr = device->CreateTexture(iWidth, iHeight, iMipCount,
-                generateMipsIfMissing ? D3DUSAGE_AUTOGENMIPMAP : 0u,
-                fmt, D3DPOOL_DEFAULT,
+                usage, fmt, pool,
                 pTexture.GetAddressOf(), nullptr);
             if (FAILED(hr))
                 return hr;
 
             ComPtr<IDirect3DTexture9> pStagingTexture;
-            hr = device->CreateTexture(iWidth, iHeight, iMipCount,
-                0u, fmt, D3DPOOL_SYSTEMMEM, pStagingTexture.GetAddressOf(), nullptr);
-            if (FAILED(hr))
-                return hr;
+            if (pool == D3DPOOL_DEFAULT)
+            {
+                hr = device->CreateTexture(iWidth, iHeight, iMipCount,
+                    0u, fmt, D3DPOOL_SYSTEMMEM, pStagingTexture.GetAddressOf(), nullptr);
+                if (FAILED(hr))
+                    return hr;
+            }
+            else
+            {
+                pStagingTexture = pTexture;
+            }
 
             // Lock, fill, unlock
             size_t NumBytes = 0;
@@ -998,9 +1062,12 @@ namespace
                     iHeight = 1;
             }
 
-            hr = device->UpdateTexture(pStagingTexture.Get(), pTexture.Get());
-            if (FAILED(hr))
-                return hr;
+            if (pool == D3DPOOL_DEFAULT)
+            {
+                hr = device->UpdateTexture(pStagingTexture.Get(), pTexture.Get());
+                if (FAILED(hr))
+                    return hr;
+            }
 
             *texture = pTexture.Detach();
         }
@@ -1017,6 +1084,19 @@ HRESULT DirectX::CreateDDSTextureFromMemory(
     size_t ddsDataSize,
     LPDIRECT3DBASETEXTURE9* texture,
     bool generateMipsIfMissing) noexcept
+{
+    return CreateDDSTextureFromMemoryEx(d3dDevice, ddsData, ddsDataSize, 0u, D3DPOOL_DEFAULT, generateMipsIfMissing, texture);
+}
+
+_Use_decl_annotations_
+HRESULT DirectX::CreateDDSTextureFromMemoryEx(
+    LPDIRECT3DDEVICE9 d3dDevice,
+    const uint8_t* ddsData,
+    size_t ddsDataSize,
+    _In_ DWORD usage,
+    _In_ D3DPOOL pool,
+    bool generateMipsIfMissing,
+    LPDIRECT3DBASETEXTURE9* texture) noexcept
 {
     if (texture)
     {
@@ -1046,11 +1126,13 @@ HRESULT DirectX::CreateDDSTextureFromMemory(
         header,
         bitData,
         bitSize,
+        usage,
+        pool,
         texture,
         generateMipsIfMissing);
 }
 
-// Type-specific versions
+// Type-specific standard versions
 _Use_decl_annotations_
 HRESULT DirectX::CreateDDSTextureFromMemory(
     LPDIRECT3DDEVICE9 d3dDevice,
@@ -1068,7 +1150,7 @@ HRESULT DirectX::CreateDDSTextureFromMemory(
         return E_INVALIDARG;
 
     ComPtr<IDirect3DBaseTexture9> tex;
-    HRESULT hr = CreateDDSTextureFromMemory(d3dDevice, ddsData, ddsDataSize, tex.GetAddressOf(), generateMipsIfMissing);
+    HRESULT hr = CreateDDSTextureFromMemoryEx(d3dDevice, ddsData, ddsDataSize, 0u, D3DPOOL_DEFAULT, generateMipsIfMissing, tex.GetAddressOf());
     if (SUCCEEDED(hr))
     {
         hr = E_FAIL;
@@ -1098,7 +1180,7 @@ HRESULT DirectX::CreateDDSTextureFromMemory(
         return E_INVALIDARG;
 
     ComPtr<IDirect3DBaseTexture9> tex;
-    HRESULT hr = CreateDDSTextureFromMemory(d3dDevice, ddsData, ddsDataSize, tex.GetAddressOf(), false);
+    HRESULT hr = CreateDDSTextureFromMemoryEx(d3dDevice, ddsData, ddsDataSize, 0u, D3DPOOL_DEFAULT, false, tex.GetAddressOf());
     if (SUCCEEDED(hr))
     {
         hr = E_FAIL;
@@ -1128,7 +1210,105 @@ HRESULT DirectX::CreateDDSTextureFromMemory(
         return E_INVALIDARG;
 
     ComPtr<IDirect3DBaseTexture9> tex;
-    HRESULT hr = CreateDDSTextureFromMemory(d3dDevice, ddsData, ddsDataSize, tex.GetAddressOf(), false);
+    HRESULT hr = CreateDDSTextureFromMemoryEx(d3dDevice, ddsData, ddsDataSize, 0u, D3DPOOL_DEFAULT, false, tex.GetAddressOf());
+    if (SUCCEEDED(hr))
+    {
+        hr = E_FAIL;
+        if (tex->GetType() == D3DRTYPE_VOLUMETEXTURE)
+        {
+            *texture = static_cast<LPDIRECT3DVOLUMETEXTURE9>(tex.Detach());
+            return S_OK;
+        }
+    }
+
+    return hr;
+}
+
+// Type-specific extended versions
+_Use_decl_annotations_
+HRESULT DirectX::CreateDDSTextureFromMemoryEx(
+    LPDIRECT3DDEVICE9 d3dDevice,
+    const uint8_t* ddsData,
+    size_t ddsDataSize,
+    DWORD usage,
+    D3DPOOL pool,
+    bool generateMipsIfMissing,
+    LPDIRECT3DTEXTURE9* texture) noexcept
+{
+    if (texture)
+    {
+        *texture = nullptr;
+    }
+
+    if (!d3dDevice || !ddsData || !ddsDataSize || !texture)
+        return E_INVALIDARG;
+
+    ComPtr<IDirect3DBaseTexture9> tex;
+    HRESULT hr = CreateDDSTextureFromMemoryEx(d3dDevice, ddsData, ddsDataSize, usage, pool, generateMipsIfMissing, tex.GetAddressOf());
+    if (SUCCEEDED(hr))
+    {
+        hr = E_FAIL;
+        if (tex->GetType() == D3DRTYPE_TEXTURE)
+        {
+            *texture = static_cast<LPDIRECT3DTEXTURE9>(tex.Detach());
+            return S_OK;
+        }
+    }
+
+    return hr;
+}
+
+_Use_decl_annotations_
+HRESULT DirectX::CreateDDSTextureFromMemoryEx(
+    LPDIRECT3DDEVICE9 d3dDevice,
+    const uint8_t* ddsData,
+    size_t ddsDataSize,
+    DWORD usage,
+    D3DPOOL pool,
+    LPDIRECT3DCUBETEXTURE9* texture) noexcept
+{
+    if (texture)
+    {
+        *texture = nullptr;
+    }
+
+    if (!d3dDevice || !ddsData || !ddsDataSize || !texture)
+        return E_INVALIDARG;
+
+    ComPtr<IDirect3DBaseTexture9> tex;
+    HRESULT hr = CreateDDSTextureFromMemoryEx(d3dDevice, ddsData, ddsDataSize, usage, pool, false, tex.GetAddressOf());
+    if (SUCCEEDED(hr))
+    {
+        hr = E_FAIL;
+        if (tex->GetType() == D3DRTYPE_CUBETEXTURE)
+        {
+            *texture = static_cast<LPDIRECT3DCUBETEXTURE9>(tex.Detach());
+            return S_OK;
+        }
+    }
+
+    return hr;
+}
+
+_Use_decl_annotations_
+HRESULT DirectX::CreateDDSTextureFromMemoryEx(
+    LPDIRECT3DDEVICE9 d3dDevice,
+    const uint8_t* ddsData,
+    size_t ddsDataSize,
+    DWORD usage,
+    D3DPOOL pool,
+    LPDIRECT3DVOLUMETEXTURE9* texture) noexcept
+{
+    if (texture)
+    {
+        *texture = nullptr;
+    }
+
+    if (!d3dDevice || !ddsData || !ddsDataSize || !texture)
+        return E_INVALIDARG;
+
+    ComPtr<IDirect3DBaseTexture9> tex;
+    HRESULT hr = CreateDDSTextureFromMemoryEx(d3dDevice, ddsData, ddsDataSize, usage, pool, false, tex.GetAddressOf());
     if (SUCCEEDED(hr))
     {
         hr = E_FAIL;
@@ -1150,6 +1330,18 @@ HRESULT DirectX::CreateDDSTextureFromFile(
     const wchar_t* fileName,
     LPDIRECT3DBASETEXTURE9* texture,
     bool generateMipsIfMissing) noexcept
+{
+    return CreateDDSTextureFromFileEx(d3dDevice, fileName, 0u, D3DPOOL_DEFAULT, generateMipsIfMissing, texture);
+}
+
+_Use_decl_annotations_
+HRESULT DirectX::CreateDDSTextureFromFileEx(
+    LPDIRECT3DDEVICE9 d3dDevice,
+    const wchar_t* fileName,
+    _In_ DWORD usage,
+    _In_ D3DPOOL pool,
+    bool generateMipsIfMissing,
+    LPDIRECT3DBASETEXTURE9* texture) noexcept
 {
     if (texture)
     {
@@ -1180,11 +1372,13 @@ HRESULT DirectX::CreateDDSTextureFromFile(
         header,
         bitData,
         bitSize,
+        usage,
+        pool,
         texture,
         generateMipsIfMissing);
 }
 
-// Type-specific versions
+// Type-specific standard versions
 _Use_decl_annotations_
 HRESULT DirectX::CreateDDSTextureFromFile(
     LPDIRECT3DDEVICE9 d3dDevice,
@@ -1201,7 +1395,7 @@ HRESULT DirectX::CreateDDSTextureFromFile(
         return E_INVALIDARG;
 
     ComPtr<IDirect3DBaseTexture9> tex;
-    HRESULT hr = CreateDDSTextureFromFile(d3dDevice, fileName, tex.GetAddressOf(), generateMipsIfMissing);
+    HRESULT hr = CreateDDSTextureFromFileEx(d3dDevice, fileName, 0u, D3DPOOL_DEFAULT, generateMipsIfMissing, tex.GetAddressOf());
     if (SUCCEEDED(hr))
     {
         hr = E_FAIL;
@@ -1230,7 +1424,7 @@ HRESULT DirectX::CreateDDSTextureFromFile(
         return E_INVALIDARG;
 
     ComPtr<IDirect3DBaseTexture9> tex;
-    HRESULT hr = CreateDDSTextureFromFile(d3dDevice, fileName, tex.GetAddressOf(), false);
+    HRESULT hr = CreateDDSTextureFromFileEx(d3dDevice, fileName, 0u, D3DPOOL_DEFAULT, false, tex.GetAddressOf());
     if (SUCCEEDED(hr))
     {
         hr = E_FAIL;
@@ -1259,7 +1453,102 @@ HRESULT DirectX::CreateDDSTextureFromFile(
         return E_INVALIDARG;
 
     ComPtr<IDirect3DBaseTexture9> tex;
-    HRESULT hr = CreateDDSTextureFromFile(d3dDevice, szFileName, tex.GetAddressOf(), false);
+    HRESULT hr = CreateDDSTextureFromFileEx(d3dDevice, szFileName, 0u, D3DPOOL_DEFAULT, false, tex.GetAddressOf());
+    if (SUCCEEDED(hr))
+    {
+        hr = E_FAIL;
+        if (tex->GetType() == D3DRTYPE_VOLUMETEXTURE)
+        {
+            *texture = static_cast<LPDIRECT3DVOLUMETEXTURE9>(tex.Detach());
+            return S_OK;
+        }
+    }
+
+    return hr;
+}
+
+// Type-specific extended versions
+_Use_decl_annotations_
+HRESULT DirectX::CreateDDSTextureFromFileEx(
+    LPDIRECT3DDEVICE9 d3dDevice,
+    const wchar_t* fileName,
+    DWORD usage,
+    D3DPOOL pool,
+    bool generateMipsIfMissing,
+    LPDIRECT3DTEXTURE9* texture) noexcept
+{
+    if (texture)
+    {
+        *texture = nullptr;
+    }
+
+    if (!d3dDevice || !fileName || !texture)
+        return E_INVALIDARG;
+
+    ComPtr<IDirect3DBaseTexture9> tex;
+    HRESULT hr = CreateDDSTextureFromFileEx(d3dDevice, fileName, usage, pool, generateMipsIfMissing, tex.GetAddressOf());
+    if (SUCCEEDED(hr))
+    {
+        hr = E_FAIL;
+        if (tex->GetType() == D3DRTYPE_TEXTURE)
+        {
+            *texture = static_cast<LPDIRECT3DTEXTURE9>(tex.Detach());
+            return S_OK;
+        }
+    }
+
+    return hr;
+}
+
+_Use_decl_annotations_
+HRESULT DirectX::CreateDDSTextureFromFileEx(
+    LPDIRECT3DDEVICE9 d3dDevice,
+    const wchar_t* fileName,
+    DWORD usage,
+    D3DPOOL pool,
+    LPDIRECT3DCUBETEXTURE9* texture) noexcept
+{
+    if (texture)
+    {
+        *texture = nullptr;
+    }
+
+    if (!d3dDevice || !fileName || !texture)
+        return E_INVALIDARG;
+
+    ComPtr<IDirect3DBaseTexture9> tex;
+    HRESULT hr = CreateDDSTextureFromFileEx(d3dDevice, fileName, usage, pool, false, tex.GetAddressOf());
+    if (SUCCEEDED(hr))
+    {
+        hr = E_FAIL;
+        if (tex->GetType() == D3DRTYPE_CUBETEXTURE)
+        {
+            *texture = static_cast<LPDIRECT3DCUBETEXTURE9>(tex.Detach());
+            return S_OK;
+        }
+    }
+
+    return hr;
+}
+
+_Use_decl_annotations_
+HRESULT DirectX::CreateDDSTextureFromFileEx(
+    LPDIRECT3DDEVICE9 d3dDevice,
+    const wchar_t* szFileName,
+    DWORD usage,
+    D3DPOOL pool,
+    LPDIRECT3DVOLUMETEXTURE9* texture) noexcept
+{
+    if (texture)
+    {
+        *texture = nullptr;
+    }
+
+    if (!d3dDevice || !szFileName || !texture)
+        return E_INVALIDARG;
+
+    ComPtr<IDirect3DBaseTexture9> tex;
+    HRESULT hr = CreateDDSTextureFromFileEx(d3dDevice, szFileName, usage, pool, false, tex.GetAddressOf());
     if (SUCCEEDED(hr))
     {
         hr = E_FAIL;
