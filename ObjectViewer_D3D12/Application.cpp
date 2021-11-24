@@ -34,7 +34,7 @@ HRESULT Application::CreateMainWindow(WNDCLASSEX &wcx) {
 
 HRESULT Application::CreateEditWindow(WNDCLASSEX &wcx) {
 	//Make Window Size Using RECT(WindowsAPI)
-	RECT rc = { 0,0,600,200 };
+	RECT rc = { 0,0,600,500 };
 	AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, false);
 	ehwnd = CreateWindow(
 		wcx.lpszClassName,

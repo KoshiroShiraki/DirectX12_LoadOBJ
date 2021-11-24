@@ -84,6 +84,7 @@ public:
 	HRESULT SetGraphicsPipeLine();
 	HRESULT Draw(Camera& camera);	//camera = camera
 	HRESULT UpdateObjTransform(HWND hwnd[9], int offset, XMFLOAT3& objData);	//hwnd[9] = EditBox used for Object transform, offset = arrays offset, objData = ObjectTransform data
+	HRESULT UpdateObjTransform(HWND hwnd[9], float value[3], int offset, XMFLOAT3& objData); //use for scroll bar
 	HRESULT UpdateWorldMatrix(Object& obj, int objIndex);	//obj = Object which you want to update, objIndex = obj's index
 	HRESULT UpdateViewMatrix(Camera &camera, int objIndex);	//camera = Camera which you want to update, objIndex = obj's index
 	HRESULT LoadObject(const char* objName); //objName = Object Name which you want to load

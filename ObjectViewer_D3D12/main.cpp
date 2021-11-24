@@ -11,13 +11,17 @@
 #define DROPDOWN_BOX 3
 #define EDIT_BOX_TRANSFORM 4//~12
 #define BUTTON_DELETE 13
+#define SLIDER_EDIT 14 //~20
 
 HRESULT CreateMainWindowRegister(WNDCLASSEX &wcx, HINSTANCE hInst); //Register Function for MainWindow
 HRESULT CreateEditWindowRegister(WNDCLASSEX& wcx, HINSTANCE hInst); //Register Function for EditWindow
 LRESULT mainWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam); //WindowProcedure for MainWindow
 LRESULT editWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam); //WindowProcedure for EditWindow
+void UpdateTransformBoxText();
 
 Application app; //for Controll this Application
+
+int pSliderPos = 0;
 
 int main() {
 	HRESULT hr;
@@ -114,6 +118,8 @@ LRESULT editWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 	//these are used for painting  window
 	PAINTSTRUCT ps;
 	HDC hdc;
+	short int dPos = 0;
+	int transformIdx = 0;
 
 	switch (msg) {
 	case WM_PAINT: //Text Initialize
@@ -122,8 +128,8 @@ LRESULT editWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 		TextOut(hdc, 5, 5, TEXT("FileName"), 8);
 		TextOut(hdc, 5, 45, TEXT("ObjectEditor"), 12);
 		TextOut(hdc, 5, 105, TEXT("Position"), 8);
-		TextOut(hdc, 5, 135, TEXT("Rotation"), 8);
-		TextOut(hdc, 5, 165, TEXT("Size"), 4);
+		TextOut(hdc, 5, 195, TEXT("Rotation"), 8);
+		TextOut(hdc, 5, 285, TEXT("Size"), 4);
 
 		EndPaint(hwnd, &ps);
 		return 0;
@@ -174,8 +180,8 @@ LRESULT editWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 			"BUTTON",
 			"Delete",
 			WS_CHILD | WS_VISIBLE,
-			480,
-			165,
+			520,
+			70,
 			50,
 			20,
 			hwnd,
@@ -209,24 +215,89 @@ LRESULT editWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 		10 11 12 ... siz.x, siz.y, siz.z
 		--------------------------------
 		*/
-		for (int i = 0; i < 9; i++) {
-			app.hEditTr[i] = CreateWindowEx(
-				0,
-				"EDIT",
-				nullptr,
-				WS_CHILD | WS_VISIBLE | WS_BORDER,
-				80 + 60 * (i % 3),
-				105 + 30 * (i / 3),
-				50,
-				25,
-				hwnd,
-				(HMENU)(EDIT_BOX_TRANSFORM + i),
-				app.hInst,
-				nullptr
-			);
+		for (int i = 0; i < 3; i++) {
+			for (int j = 0; j < 3; j++) {
+				app.hEditTr[i * 3 + j] = CreateWindowEx(
+					0,
+					"EDIT",
+					nullptr,
+					WS_CHILD | WS_VISIBLE | WS_BORDER,
+					80,
+					105 + 30 * (i * 3 + j),
+					50,
+					25,
+					hwnd,
+					(HMENU)(EDIT_BOX_TRANSFORM + i * 3 + j),
+					app.hInst,
+					nullptr
+				);
+				app.hSlider[i * 3 + j] = CreateWindowEx(
+					0,
+					"SCROLLBAR",
+					nullptr,
+					WS_CHILD | WS_VISIBLE | SS_LEFT,
+					160,
+					105 + 30 * (i * 3 + j),
+					200,
+					25,
+					hwnd,
+					(HMENU)(SLIDER_EDIT + i * 3 + j),
+					app.hInst,
+					nullptr
+				);
+				app.scrInfo[i * 3 + j].cbSize = sizeof(SCROLLINFO);
+				app.scrInfo[i * 3 + j].fMask = SIF_RANGE;
+				app.scrInfo[i * 3 + j].nMin = -100;
+				app.scrInfo[i * 3 + j].nMax = 100;
+				SetScrollInfo(app.hSlider[i * 3 + j], SB_CTL, &app.scrInfo[i * 3 + j], TRUE);
+			}
 		}
 		return 0;
 
+
+	case WM_HSCROLL:
+		if (app.objIndex != -1) {
+			for (int i = 0; i < 9; i++) {
+				if ((HWND)lparam == app.hSlider[i]) { // Check which scrollbar is moved
+					float value[3] = { 0.0f,0.0f,0.0f };
+					short int sliderPos = HIWORD(wparam);
+
+					switch (LOWORD(wparam)) {
+					case SB_LINERIGHT:
+
+						break;
+					case SB_LINELEFT:
+
+						break;
+					case SB_THUMBTRACK:
+						dPos = sliderPos - pSliderPos;
+						transformIdx = floor(i / 3) * 3;
+						value[i % 3] = dPos;
+
+						switch (transformIdx) {
+						case 0:
+							app.DxCon.UpdateObjTransform(app.hSlider, value, transformIdx, app.DxCon.objs[app.objIndex].transform.position);
+							break;
+						case 3:
+							app.DxCon.UpdateObjTransform(app.hSlider, value, transformIdx, app.DxCon.objs[app.objIndex].transform.rotation);
+							break;
+						case 6:
+							app.DxCon.UpdateObjTransform(app.hSlider, value, transformIdx, app.DxCon.objs[app.objIndex].transform.size);
+							break;
+						}
+					
+						pSliderPos = sliderPos;
+						UpdateTransformBoxText();
+						app.DxCon.Draw(app.camera);
+						break;
+					case SB_ENDSCROLL:
+						pSliderPos = 0;
+						break;
+					}
+				}
+			}
+		}
+		return 0;
 	case WM_COMMAND:
 		/*
 		this message is called when something happened in Window.(e.g. User's Mouse Cursel clicked window)
@@ -261,15 +332,7 @@ LRESULT editWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 				//not to update Parameters, using flag
 				{
 					app.objIndex = SendMessage(app.hDrop, CB_GETCURSEL, 0, 0);
-					SendMessage(app.hEditTr[0], WM_SETTEXT, 0, (LPARAM)std::to_string(app.DxCon.objs[app.objIndex].transform.position.x).c_str());
-					SendMessage(app.hEditTr[1], WM_SETTEXT, 0, (LPARAM)std::to_string(app.DxCon.objs[app.objIndex].transform.position.y).c_str());
-					SendMessage(app.hEditTr[2], WM_SETTEXT, 0, (LPARAM)std::to_string(app.DxCon.objs[app.objIndex].transform.position.z).c_str());
-					SendMessage(app.hEditTr[3], WM_SETTEXT, 0, (LPARAM)std::to_string(app.DxCon.objs[app.objIndex].transform.rotation.x).c_str());
-					SendMessage(app.hEditTr[4], WM_SETTEXT, 0, (LPARAM)std::to_string(app.DxCon.objs[app.objIndex].transform.rotation.y).c_str());
-					SendMessage(app.hEditTr[5], WM_SETTEXT, 0, (LPARAM)std::to_string(app.DxCon.objs[app.objIndex].transform.rotation.z).c_str());
-					SendMessage(app.hEditTr[6], WM_SETTEXT, 0, (LPARAM)std::to_string(app.DxCon.objs[app.objIndex].transform.size.x).c_str());
-					SendMessage(app.hEditTr[7], WM_SETTEXT, 0, (LPARAM)std::to_string(app.DxCon.objs[app.objIndex].transform.size.y).c_str());
-					SendMessage(app.hEditTr[8], WM_SETTEXT, 0, (LPARAM)std::to_string(app.DxCon.objs[app.objIndex].transform.size.z).c_str());
+					UpdateTransformBoxText();
 				}
 				app.isUpdateText = false;
 				return 0;
@@ -277,7 +340,7 @@ LRESULT editWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 			return 0;
 		}
 
-		if (app.objIndex != -1 && !app.isUpdateText) { //EditBox
+		/*if (app.objIndex != -1 && !app.isUpdateText) { //EditBox
 			for (int i = 0; i < 9; i++) {
 				int editNo = EDIT_BOX_TRANSFORM + i; //check EditBox message(from Edit_BOX_TRANSFORM = 4 to 12)
 				if (LOWORD(wparam) == editNo) {
@@ -302,7 +365,7 @@ LRESULT editWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 					return 0;
 				}
 			}
-		}
+		}*/
 		return 0;
 	case WM_DESTROY:
 		PostQuitMessage(0);
@@ -310,4 +373,16 @@ LRESULT editWindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 	}
 
 	return DefWindowProc(hwnd, msg, wparam, lparam);
+}
+
+void UpdateTransformBoxText() {
+	SendMessage(app.hEditTr[0], WM_SETTEXT, 0, (LPARAM)std::to_string(app.DxCon.objs[app.objIndex].transform.position.x).c_str());
+	SendMessage(app.hEditTr[1], WM_SETTEXT, 0, (LPARAM)std::to_string(app.DxCon.objs[app.objIndex].transform.position.y).c_str());
+	SendMessage(app.hEditTr[2], WM_SETTEXT, 0, (LPARAM)std::to_string(app.DxCon.objs[app.objIndex].transform.position.z).c_str());
+	SendMessage(app.hEditTr[3], WM_SETTEXT, 0, (LPARAM)std::to_string(app.DxCon.objs[app.objIndex].transform.rotation.x).c_str());
+	SendMessage(app.hEditTr[4], WM_SETTEXT, 0, (LPARAM)std::to_string(app.DxCon.objs[app.objIndex].transform.rotation.y).c_str());
+	SendMessage(app.hEditTr[5], WM_SETTEXT, 0, (LPARAM)std::to_string(app.DxCon.objs[app.objIndex].transform.rotation.z).c_str());
+	SendMessage(app.hEditTr[6], WM_SETTEXT, 0, (LPARAM)std::to_string(app.DxCon.objs[app.objIndex].transform.size.x).c_str());
+	SendMessage(app.hEditTr[7], WM_SETTEXT, 0, (LPARAM)std::to_string(app.DxCon.objs[app.objIndex].transform.size.y).c_str());
+	SendMessage(app.hEditTr[8], WM_SETTEXT, 0, (LPARAM)std::to_string(app.DxCon.objs[app.objIndex].transform.size.z).c_str());
 }

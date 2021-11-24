@@ -517,7 +517,6 @@ HRESULT DirectXController::Draw(Camera& camera) {
 		for (int objCnt = 0; objCnt < LoadedObjCount; objCnt++) {
 
 			D3D12_GPU_DESCRIPTOR_HANDLE tmpHandle;
-
 			UpdateWorldMatrix(objs[objCnt], objCnt);
 			UpdateViewMatrix(camera, objCnt);
 
@@ -619,9 +618,17 @@ HRESULT DirectXController::UpdateObjTransform(HWND hwnd[9], int offset, XMFLOAT3
 	return S_OK;
 }
 
+HRESULT DirectXController::UpdateObjTransform(HWND hwnd[9], float value[3], int offset, XMFLOAT3& objData) {
+	objData.x += value[0];
+	objData.y += value[1];
+	objData.z += value[2];
+
+	return S_OK;
+}
+
 HRESULT DirectXController::UpdateWorldMatrix(Object& obj, int objIndex) {
 	XMMATRIX posMat = XMMatrixTranslation(obj.transform.position.x, obj.transform.position.y, obj.transform.position.z);
-	XMMATRIX rotMat = XMMatrixRotationRollPitchYaw(obj.transform.rotation.x, obj.transform.rotation.y, obj.transform.rotation.z);
+	XMMATRIX rotMat = XMMatrixRotationRollPitchYaw(obj.transform.rotation.x * XM_PI / 180, obj.transform.rotation.y * XM_PI / 180, obj.transform.rotation.z * XM_PI / 180);
 	XMMATRIX sizMat = XMMatrixScaling(obj.transform.size.x, obj.transform.size.y, obj.transform.size.z);
 
 	XMMATRIX worldMat = sizMat * rotMat * posMat; //Create New Matrix to hand mapMatrix

@@ -74,11 +74,12 @@ Object::~Object() {
 }
 
 HRESULT Object::OBJ_LoadModelData(std::string path, ID3D12Device* device) {
-	if (ObjectLoaded) { //Check this classObject has already loaded ObjectData
+	if (ObjectLoaded) { //Check this class has already loaded ObjectData
 		std::cout << "Object File is already loaded\n";
 		return E_FAIL;
 	}
 	ObjectLoaded = true;
+
 	std::cout << "\n-------------------------\n";
 	std::cout << "Loading Model(start)" << std::endl;
 
