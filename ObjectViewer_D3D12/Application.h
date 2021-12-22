@@ -7,7 +7,9 @@
 #include"ConstValue.h"
 #include"PathController.h"
 #include"Input.h"
-
+#include"MainWindowController.h"
+#include"ListWindowController.h"
+#include"EditWindowController.h"
 
 class Application {
 public:
@@ -18,8 +20,12 @@ public:
 	DirectXController DxCon;	//to Controll DirectX
 	Input input;	//to Controll Input
 	Camera camera;	//to Controll Camera
+	Light light;
 
-	HWND mhwnd;	//MainWindow Handle
+	MainWindowController* m_mwc = nullptr;
+	ListWindowController* m_lwc = nullptr;
+	EditWindowController* m_ewc = nullptr;
+
 	HINSTANCE hInst;	//InstanceHandle
 	HWND ehwnd;	//EditWindow Handle
 	HWND hEdit;	//ComboBox Handle use for Select Object which you want to Load
@@ -34,18 +40,18 @@ public:
 
 	bool isDeleteObject = false;
 
-	bool isUpdateText = false;	//Check this Application is Changing EditBox's text
-
 	std::vector<std::string> DefaultObjFilePaths;	//Loadable Objects List.
 
 	int objIndex = -1;	//Index of Objects List. this will use for reference which Object's parameter should be changed.
 
 public:
-	HRESULT CreateMainWindow(WNDCLASSEX& wcx);	//wcx = WindowRegisterClass for MainWindow
-	HRESULT CreateEditWindow(WNDCLASSEX& wcx);	//wcx = WindowRegisterClass for EditWindow
 	void DeleteObject();
+	void UpdateListBox();
+	void UpdateEditBox();
+	void UpdateParentListBox();
+	void UpdateChildListBox();
 
-	HRESULT Initialize(WNDCLASSEX& mwcx, WNDCLASSEX& ewcx);	//mwcx = WindowRegisterClass for MainWindow, ewcx = WindowRegisterClass for EditWindow
+	HRESULT Initialize();	//mwcx = WindowRegisterClass for MainWindow, ewcx = WindowRegisterClass for EditWindow
 	void Update();
 	void Terminate();
 };

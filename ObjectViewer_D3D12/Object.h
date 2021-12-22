@@ -9,6 +9,7 @@
 #include<fstream>
 #include<time.h>
 #include"PathController.h"
+#include"Camera.h"
 using namespace DirectX;
 
 #define MAX_READ_LINEDATA 10000 //メッシュ/マテリアルファイルを読み込むときの最大文字数/行
@@ -16,10 +17,10 @@ using namespace DirectX;
 
 #pragma comment(lib,"DirectXTex.lib")
 
-/*
-this programu is load "wavefront OBJ(.obj)".
-file format reference -> https://ja.wikipedia.org/wiki/Wavefront_.obj%E3%83%95%E3%82%A1%E3%82%A4%E3%83%AB (Caution : this is not official)
-*/
+struct SimpleVertex {
+	XMFLOAT3 pos;
+	XMFLOAT2 uv;
+};
 
 struct ObjTransrom {
 	XMFLOAT3 position;
@@ -27,26 +28,26 @@ struct ObjTransrom {
 	XMFLOAT3 size;
 };
 
-//use for shader resources
+//シェーダリソースとして使われる(頂点)
 struct OBJVertex {
 	XMFLOAT3 pos;
 	XMFLOAT3 normal;
 	XMFLOAT2 uv;
 };
 
-//use for change Descriptor in Draw function
+//マテリアル参照情報
 struct OBJMaterialRef {
 	std::string matName;
 
 	int matID;
 
-	int idxOffset; //material start Posiiton
-	int idxNum; //Apllying material Count
+	int idxOffset;
+	int idxNum;
 
 	OBJMaterialRef();
 };
 
-//use for shader resources
+//シェーダリソースとして使われる(マテリアル)
 struct OBJMaterialCB {
 	XMFLOAT4 ambient;
 	XMFLOAT4 diffuse;
@@ -56,6 +57,7 @@ struct OBJMaterialCB {
 	char padding[204];
 };
 
+//マテリアル情報
 struct OBJMaterial {
 	OBJMaterialCB mcb;
 
@@ -71,7 +73,7 @@ struct OBJMaterial {
 	void Init();
 };
 
-//use for Analyze .obj file's FaceData
+//面情報の解析に使う
 struct OBJFaceData {
 	int vertexCnt;
 	int** dataIndex;
@@ -82,11 +84,14 @@ struct OBJFaceData {
 
 	OBJFaceData(const OBJFaceData& fd);
 };
+
+//画像データ
 struct ImageData {
 	size_t rowPitch;
 	DXGI_FORMAT format;
 };
 
+//テクスチャバッファ
 struct OBJTextureBuffers {
 	ID3D12Resource* ambTexBuffer = nullptr;
 	ID3D12Resource* difTexBuffer = nullptr;
@@ -103,22 +108,19 @@ public:
 
 	ObjTransrom transform;
 
-	bool ObjectLoaded = false;	//if this classObject already loaded ObjectData, never load more ObjectData
+	bool ObjectLoaded = false;	//実体化されたオブジェクトクがすでにモデルをロード済みか
 
-	std::string objName;
+	std::string objName; //オブジェクト名
 
-	/*
-	these vector used to get data from .obj file.
-	and these vector also used to create Buffers.
-	*/
 	std::vector<OBJVertex> vertices;
 	std::vector<OBJMaterial> materials;
 	std::vector<OBJMaterialRef> matRef;
 	std::vector<unsigned> indices;
 
-	int texCount = 0; //Count of Texture
+	int texCount = 0; //テクスチャ数
 
-	/*-----Use for DirectX Drawing-----*/
+	/*-----DirectX12描画用-----*/
+public:
 	ID3D12Resource* vertexBuffer = nullptr;
 	ID3D12Resource* indexBuffer = nullptr;
 	ID3D12Resource* materialBuffer = nullptr;
@@ -127,14 +129,32 @@ public:
 	D3D12_INDEX_BUFFER_VIEW ibView = {};
 	ID3D12DescriptorHeap* materialDescHeap = nullptr;
 	ID3D12DescriptorHeap* textureDescHeap = nullptr;
-	/*--------------------------------*/
+	XMMATRIX worldMat; //ワールド行列(ワールド位置はオブジェクトごとに違うので自己管理)
+	/*-------------------------*/
 
+	/*-----OBJパース用-----*/
 	HRESULT OBJ_LoadModelData(std::string path, ID3D12Device* device);
 	HRESULT checkPathLength(size_t length);
 	void OBJ_splitBlank(std::string str, std::vector<std::string>& data);
 	void OBJ_splitSlash(std::string str, int* data);
 	int findMaterialIndex(std::vector<OBJMaterialRef> mr, std::string material);
 	HRESULT OBJ_CreateTextureBuffer(const wchar_t* pathName, size_t pathLength, int materialNum, int textureNum, ID3D12Device* device);
+	/*---------------------*/
+
+	/*-----3Dオブジェクト用-----*/
+	HRESULT CreatePlane();
+	HRESULT CreateCube();
+	/*--------------------------*/
+
+	/*-----共通-----*/
+	HRESULT CreateVertexBuffer();
+	HRESULT CreateIndexBuffer();
+	HRESULT CreateMaterialBuffer();
+	HRESULT CreateTextureBuffer();
+
+	/*-----描画-----*/
+	HRESULT DrawObjet(ID3D12GraphicsCommandList* cmdList, ID3D12PipelineState* pipelineState, ID3D12RootSignature* rootsignature, Camera camera, D3D12_CPU_DESCRIPTOR_HANDLE rtvH, D3D12_CPU_DESCRIPTOR_HANDLE dsvH, D3D12_VIEWPORT vp, D3D12_RECT rc);
+
 	template<typename T>
 	void vectorRelease(std::vector<T>& vec);
 	void Release();

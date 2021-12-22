@@ -2,10 +2,23 @@
 #include"DirectXController.h"
 
 DirectXController::DirectXController() {
-	objs.resize(MAX_OBJECT_COUNT);
+	//ビューポートの設定
+	m_vp.Width = window_Width;
+	m_vp.Height = window_Height;
+	m_vp.TopLeftX = 0;
+	m_vp.TopLeftY = 0;
+	m_vp.MaxDepth = 1.0f;
+	m_vp.MinDepth = 0.0f;
+
+	//シザー矩形の設定
+	m_sr.top = 0;
+	m_sr.left = 0;
+	m_sr.right = m_sr.left + window_Width;
+	m_sr.bottom = m_sr.top + window_Height;
 }
 
 DirectXController::~DirectXController() {
+
 }
 
 HRESULT DirectXController::InitD3D(HWND hwnd) {
@@ -15,21 +28,21 @@ HRESULT DirectXController::InitD3D(HWND hwnd) {
 	EnableDebugLayer();
 #endif
 
-	/*-----Create Factory ... use for Create Swapchain, CommandList, ...-----*/
-	hr = CreateDXGIFactory2(DXGI_CREATE_FACTORY_DEBUG, IID_PPV_ARGS(&factory));
+	/*-----ファクトリの生成-----*/
+	hr = CreateDXGIFactory2(DXGI_CREATE_FACTORY_DEBUG, IID_PPV_ARGS(&m_factory));
 	if (FAILED(hr)) {
-		std::cout << "Failed to Create Factory\n";
+		std::cout << "Failed to Create m_factory\n";
 		return hr;
 	}
 
-	/*-----Create Device ... use for Crate Resource, DescriptorHeap, ...-----*/
+	/*-----デバイスの生成-----*/
 	//enumerate Video Adapter
 	std::vector <IDXGIAdapter*> adapters;
 	IDXGIAdapter* tmpAdapter = nullptr;
-	for (int i = 0; factory->EnumAdapters(i, &tmpAdapter) != DXGI_ERROR_NOT_FOUND; i++) {
+	for (int i = 0; m_factory->EnumAdapters(i, &tmpAdapter) != DXGI_ERROR_NOT_FOUND; i++) {
 		adapters.push_back(tmpAdapter);
 	}
-	//Set Adaptor
+	//アダプタの設定
 	for (auto adpt : adapters) {
 		DXGI_ADAPTER_DESC adesc = {};
 		adpt->GetDesc(&adesc);
@@ -40,17 +53,17 @@ HRESULT DirectXController::InitD3D(HWND hwnd) {
 			break;
 		}
 	}
-	//enumerate Feature Levels
+	//機能レベルの列挙
 	D3D_FEATURE_LEVEL levels[] = {
 		D3D_FEATURE_LEVEL_12_1,
 		D3D_FEATURE_LEVEL_12_0,
 		D3D_FEATURE_LEVEL_11_1,
 		D3D_FEATURE_LEVEL_11_0,
 	};
-	//CreateDevice
+	//デバイスの生成
 	D3D_FEATURE_LEVEL featureLevel;
 	for (auto lv : levels) {
-		hr = D3D12CreateDevice(tmpAdapter, lv, IID_PPV_ARGS(&device));
+		hr = D3D12CreateDevice(tmpAdapter, lv, IID_PPV_ARGS(&m_device));
 		if (SUCCEEDED(hr)) {
 			featureLevel = lv;
 			std::cout << lv << std::endl;
@@ -58,40 +71,40 @@ HRESULT DirectXController::InitD3D(HWND hwnd) {
 		}
 	}
 	if (FAILED(hr)) {
-		std::cout << "Failed to Create Device\n";
+		std::cout << "Failed to Create m_device\n";
 		return hr;
 	}
 
-	/*-----Create CommandAllocator-----*/
-	hr = device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&cmdAllocator));
+	/*-----コマンドアロケータの生成-----*/
+	hr = m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&m_cmdAllocator));
 	if (FAILED(hr)) {
-		std::cout << "Falied to Create CommandAllocator\n";
+		std::cout << "Falied to Create m_CommandAllocator\n";
 		return hr;
 	}
 
-	/*-----Create CommandList-----*/
-	hr = device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, cmdAllocator, nullptr, IID_PPV_ARGS(&cmdList));
+	/*-----コマンドリストの生成-----*/
+	hr = m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, m_cmdAllocator, nullptr, IID_PPV_ARGS(&m_cmdList));
 	if (FAILED(hr)) {
-		std::cout << "Failed to Create CommandList\n";
+		std::cout << "Failed to Create m_CommandList\n";
 		return hr;
 	}
 
-	/*-----CreateCommandQueue-----*/
-	//Describe CommandQueue
+	/*-----コマンドキューの生成-----*/
+	//コマンドキューの設定
 	D3D12_COMMAND_QUEUE_DESC cmdQueueDesc = {};
 	cmdQueueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 	cmdQueueDesc.NodeMask = 0;
 	cmdQueueDesc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
 	cmdQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-	//Create CommandQueue
-	hr = device->CreateCommandQueue(&cmdQueueDesc, IID_PPV_ARGS(&cmdQueue));
+	//コマンドキューの生成
+	hr = m_device->CreateCommandQueue(&cmdQueueDesc, IID_PPV_ARGS(&m_cmdQueue));
 	if (FAILED(hr)) {
-		std::cout << "Failed to Create CommandQueue\n";
+		std::cout << "Failed to Create m_CommandQueue\n";
 		return hr;
 	}
 
-	/*-----Create SwapChain ... swap BackBuffer to FrontBuffer(this Application uses DoubleBuffering)-----*/
-	//Describe SwapChain
+	/*-----スワップチェインの生成-----*/
+	//スワップチェインの設定
 	DXGI_SWAP_CHAIN_DESC1 swapchainDesc = {};
 	swapchainDesc.Width = window_Width;
 	swapchainDesc.Height = window_Height;
@@ -100,49 +113,136 @@ HRESULT DirectXController::InitD3D(HWND hwnd) {
 	swapchainDesc.SampleDesc.Count = 1;
 	swapchainDesc.SampleDesc.Quality = 0;
 	swapchainDesc.BufferUsage = DXGI_USAGE_BACK_BUFFER;
-	swapchainDesc.BufferCount = 2;
+	swapchainDesc.BufferCount = RT_BUFFER_COUNT;
 	swapchainDesc.Scaling = DXGI_SCALING_STRETCH;
 	swapchainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 	swapchainDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
 	swapchainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
-	//Create SwapChain
-	backBuffers.resize(swapchainDesc.BufferCount);
-	hr = factory->CreateSwapChainForHwnd(cmdQueue, hwnd, &swapchainDesc, nullptr, nullptr, (IDXGISwapChain1**)&swapchain);
+	//スワップチェインの生成
+	hr = m_factory->CreateSwapChainForHwnd(m_cmdQueue, hwnd, &swapchainDesc, nullptr, nullptr, (IDXGISwapChain1**)&m_swapchain);
 	if (FAILED(hr)) {
-		std::cout << "Failed to Create SwapChain\n";
+		std::cout << "Failed to Create m_SwapChain\n";
 		return hr;
 	}
 
-	/*-----Create RenderTargetView ... Create Rendering Target details-----*/
-	//Describe DescriptorHeap
+	/*-----フェンスの生成-----*/
+	hr = m_device->CreateFence(m_fenceVal, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence));
+	if (FAILED(hr)) {
+		std::cout << "Failed to Create m_Fence\n";
+		return hr;
+	}
+
+	return S_OK;
+}
+
+HRESULT DirectXController::CreateBackBuffers() {
+	HRESULT hr;
+
+	/*-----バックバッファの生成-----*/
+	//ディスクリプタヒープの設定
 	D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
 	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 	heapDesc.NodeMask = 0;
-	heapDesc.NumDescriptors = 2;
+	heapDesc.NumDescriptors = RT_BUFFER_COUNT;
 	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-	//Create Descriptor Heap
-	hr = device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&rtvHeap));
+	//ディスクリプタヒープの生成
+	hr = m_device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&m_rtvHeap));
 	if (FAILED(hr)) {
 		std::cout << "Failed to Create Descriptor Heap\n";
 		return 0;
 	}
-	//Create RenderTargetView
-	D3D12_CPU_DESCRIPTOR_HANDLE handle = rtvHeap->GetCPUDescriptorHandleForHeapStart();
-	for (int i = 0; i < swapchainDesc.BufferCount; i++) {
-		hr = swapchain->GetBuffer(i, IID_PPV_ARGS(&backBuffers[i]));
-		device->CreateRenderTargetView(backBuffers[i], nullptr, handle);
-		handle.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	//ディスクリプタ(レンダーターゲットビュー)の生成
+	D3D12_CPU_DESCRIPTOR_HANDLE handle = m_rtvHeap->GetCPUDescriptorHandleForHeapStart();
+	for (int i = 0; i < RT_BUFFER_COUNT; i++) {
+		hr = m_swapchain->GetBuffer(i, IID_PPV_ARGS(&m_backBuffers[i]));
+		m_device->CreateRenderTargetView(m_backBuffers[i], nullptr, handle);
+		handle.ptr += m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	}
 
-	/*-----Create Fence ... this is used for synchronous process GPU and CPU-----*/
-	hr = device->CreateFence(fenceVal, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence));
+	return S_OK;
+}
+
+HRESULT DirectXController::CreateRenderBuffers() {
+	HRESULT hr;
+
+	/*----RenderBufferの生成-----*/
+	if (m_backBuffers[0] == nullptr) {
+		std::cout << "BackBuffers are not Created" << std::endl;
+		return E_FAIL;
+	}
+	//リソース設定をバックバッファから使いまわす
+	D3D12_RESOURCE_DESC resDesc = m_backBuffers[0]->GetDesc();
+	//ヒーププロパティの設定
+	D3D12_HEAP_PROPERTIES heapProp = {};
+	heapProp.Type = D3D12_HEAP_TYPE_DEFAULT;
+	heapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	heapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	//クリアカラーの設定
+	D3D12_CLEAR_VALUE cv;
+	float clearColor[4] = { 0.5f,0.5f,0.7f,1.0f };
+	std::copy(std::begin(clearColor), std::end(clearColor), cv.Color);
+	cv.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	//あらかじめ決めておいた数だけRenderBufferを生成する
+	for (int i = 0; i < RT_MULTIPASS_COUNT; i++) {
+		hr = m_device->CreateCommittedResource(&heapProp, D3D12_HEAP_FLAG_NONE, &resDesc, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, &cv, IID_PPV_ARGS(&m_renderBuffers[i]));
+		if (FAILED(hr)) {
+			std::cout << "Failed to Creatae renderImages" << std::endl;
+			return hr;
+		}
+	}
+
+	/*-----レンダーターゲットビューの生成-----*/
+	//ディスクリプタヒープの設定
+	D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
+	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+	heapDesc.NodeMask = 0;
+	heapDesc.NumDescriptors = RT_BUFFER_COUNT;
+	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+	heapDesc.NumDescriptors = RT_MULTIPASS_COUNT;
+	//ディスクリプタヒープの生成
+	hr = m_device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&m_mrtvHeap));
 	if (FAILED(hr)) {
-		std::cout << "Failed to Create Fence\n";
+		std::cout << "Failed to Create DescriptorHeap" << std::endl;
 		return hr;
 	}
+	//レンダーターゲットビューの生成
+	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+	rtvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	D3D12_CPU_DESCRIPTOR_HANDLE handle = m_mrtvHeap->GetCPUDescriptorHandleForHeapStart();
+	for (int i = 0; i < RT_MULTIPASS_COUNT; i++) {
+		m_device->CreateRenderTargetView(m_renderBuffers[i], &rtvDesc, handle);
+		handle.ptr += m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	}
 
-	/*-----Create Depth/StencilBuffer ... use for exclude draw hidden surface of Objects-----*/
-	//Depth/StencilBufferの定義
+	/*-----シェーダリソースビューの生成-----*/
+	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	hr = m_device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&m_msrvHeap));
+	//ディスクリプタヒープの生成
+	if (FAILED(hr)) {
+		std::cout << "Failed to Create DescriptorHeap" << std::endl;
+		return hr;
+	}
+	//シェーダリソースビューの設定
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Format = rtvDesc.Format;
+	srvDesc.Texture2D.MipLevels = 1;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	//シェーダリソースビューの生成
+	handle = m_msrvHeap->GetCPUDescriptorHandleForHeapStart();
+	for (int i = 0; i < RT_MULTIPASS_COUNT; i++) {
+		m_device->CreateShaderResourceView(m_renderBuffers[i], &srvDesc, handle);
+		handle.ptr += m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	}
+}
+
+HRESULT DirectXController::CreateDepthStencilBuffer() {
+	HRESULT hr;
+
+	/*-----Depth/StencilBufferの生成-----*/
+	//深度/ステンシルバッファの定義
 	D3D12_RESOURCE_DESC depthResDesc = {};
 	depthResDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 	depthResDesc.Width = window_Width;
@@ -151,64 +251,78 @@ HRESULT DirectXController::InitD3D(HWND hwnd) {
 	depthResDesc.Format = DXGI_FORMAT_D32_FLOAT;
 	depthResDesc.SampleDesc.Count = 1;
 	depthResDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-	//Depth/StencilBuffer HeapProperty
+	//ヒープの設定
 	D3D12_HEAP_PROPERTIES depthHeapProp = {};
 	depthHeapProp.Type = D3D12_HEAP_TYPE_DEFAULT;
 	depthHeapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
 	depthHeapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-	//ClearValue
+	//深度/ステンシルバッファのクリア値
 	D3D12_CLEAR_VALUE depthClearValue = {};
 	depthClearValue.DepthStencil.Depth = 1.0f;
 	depthClearValue.Format = DXGI_FORMAT_D32_FLOAT;
-	//Create Depth/StencilBuffer
-	hr = device->CreateCommittedResource(&depthHeapProp, D3D12_HEAP_FLAG_NONE, &depthResDesc, D3D12_RESOURCE_STATE_DEPTH_WRITE, &depthClearValue, IID_PPV_ARGS(&depthBuffer));
+	//深度/ステンシルバッファの生成
+	hr = m_device->CreateCommittedResource(&depthHeapProp, D3D12_HEAP_FLAG_NONE, &depthResDesc, D3D12_RESOURCE_STATE_DEPTH_WRITE, &depthClearValue, IID_PPV_ARGS(&m_depthBuffer));
 	if (FAILED(hr)) {
-		std::cout << "Failed to Create DepthStencilBuffer\n";
+		std::cout << "Failed to Create m_DepthStencilBuffer" << std::endl;;
 		return hr;
 	}
 
-	/*-----Create Depth/StencilView-----*/
-	//describe Depth/StencilView
+	/*-----Depth/StencilViewの生成-----*/
+	//ディスクリプタヒープの設定
 	D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
 	dsvHeapDesc.NumDescriptors = 1;
 	dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
-	hr = device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&dsvHeap));
+	hr = m_device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&m_dsvHeap));
 	if (FAILED(hr)) {
-		std::cout << "Failed to Create dsvHeap\n";
+		std::cout << "Failed to Create m_dsvHeap" << std::endl;;
 		return hr;
 	}
-	//Create Depth/StencilView
+	//ディスクリプタ(深度/ステンシルビューの生成)
 	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
 	dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
 	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
 	dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
-	device->CreateDepthStencilView(depthBuffer, &dsvDesc, dsvHeap->GetCPUDescriptorHandleForHeapStart());
+	m_device->CreateDepthStencilView(m_depthBuffer, &dsvDesc, m_dsvHeap->GetCPUDescriptorHandleForHeapStart());
+}
+
+HRESULT DirectXController::CreateRenderResources() {
+
+	if (FAILED(CreateBackBuffers())) {
+		return ErrorMessage("Failed to Create BackBuffers");
+	}
+
+	if (FAILED(CreateRenderBuffers())) {
+		return ErrorMessage("Failed to Create RenderBuffers");
+	}
+
+	if (FAILED(CreateDepthStencilBuffer())) {
+		return ErrorMessage("Failed to Create DepthStencilBuffer");
+	}
+
+	if (FAILED(CreateFinalRenderPolygon())) {
+		return ErrorMessage("Failed t o Create FinalRenderPolygon");
+	}
 
 	return S_OK;
 }
 
-/*
-Function name is "CreateResources" because of I was also using this function to Create Object Resources, but now is not.
-this function used for only Create ConstantBuffer
-*/
-HRESULT DirectXController::CreateResources(Camera &camera) {
+HRESULT DirectXController::CreateFinalRenderPolygon() {
 	HRESULT hr;
-
-#ifdef _DEBUG
-	EnableDebugLayer();
-#endif
-	/*-----Create ConstantBuffer-----*/
-	//Create ViewMatrix
-	DirectX::XMFLOAT3 eye(0, 0, 0); // = camera pos
-	DirectX::XMFLOAT3 target(0, 0, eye.z + 1); // = camera Look at
-	DirectX::XMFLOAT3 up(0, 1, 0); // = use for compute axis from eye and target
-	camera.InitCamera(eye, target, up); //ViewMatrix Mange Camera Class
-	//Create ProjectionMatrix
-	XMMATRIX projectionMatrix = DirectX::XMMatrixPerspectiveFovLH(DirectX::XM_PIDIV2, static_cast<float>(window_Width) / static_cast<float>(window_Height), 1.0f, 10000.0f);
-	//describe Resource
+	/*
+	最終出力結果テクスチャを貼り付けるポリゴン
+	座標変換もすべて必要ない、ビューポートの端から端を覆うUV付きポリゴンを作ればよい
+	*/
+	SimpleVertex frRect[] = {
+		{ {-1, 1, 0.1f}, {0, 0} },
+		{ {1, 1, 0.1f},{1, 0} },
+		{ {-1, -1, 0.1f}, {0 ,1} },
+		{ {1, -1, 0.1f}, {1, 1} }
+	};
+	/*-----頂点バッファの生成-----*/
+	//リソース設定
 	D3D12_RESOURCE_DESC resDesc = {};
 	resDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-	resDesc.Width = sizeof(MatrixData) * MAX_OBJECT_COUNT;
+	resDesc.Width = sizeof(frRect);
 	resDesc.Height = 1;
 	resDesc.DepthOrArraySize = 1;
 	resDesc.MipLevels = 1;
@@ -216,115 +330,190 @@ HRESULT DirectXController::CreateResources(Camera &camera) {
 	resDesc.SampleDesc.Count = 1;
 	resDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 	resDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-	//HeapProperty
+	//ヒープ設定
 	D3D12_HEAP_PROPERTIES heapProp = {};
 	heapProp.Type = D3D12_HEAP_TYPE_UPLOAD;
 	heapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
 	heapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-	device->CreateCommittedResource(
+	//頂点バッファの生成
+	hr = m_device->CreateCommittedResource(&heapProp, D3D12_HEAP_FLAG_NONE, &resDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_finalRenderPolygon));
+	if (FAILED(hr)) {
+		std::cout << "Failed to Create FinalRenderPolygon" << std::endl;
+		return hr;
+	}
+
+	/*-----頂点データのマップ-----*/
+	SimpleVertex* mapData = nullptr;
+	m_finalRenderPolygon->Map(0, nullptr, (void**)(&mapData));
+	std::copy(std::begin(frRect), std::end(frRect), mapData);
+	m_finalRenderPolygon->Unmap(0, nullptr);
+
+	/*-----頂点バッファビューの生成-----*/
+	m_finarRenderVbv.BufferLocation = m_finalRenderPolygon->GetGPUVirtualAddress();
+	m_finarRenderVbv.SizeInBytes = sizeof(frRect);
+	m_finarRenderVbv.StrideInBytes = sizeof(SimpleVertex);
+
+	return S_OK;
+}
+
+HRESULT CreateFloorPolygon() {
+
+	return S_OK;
+}
+
+HRESULT DirectXController::CreateConstBuffers(Camera& camera, Light& light) {
+	HRESULT hr;
+
+	/*-----constBufferの生成-----*/
+	//ビュー行列(カメラ視点行列)の生成
+	DirectX::XMFLOAT3 eye(0, 0, 0);
+	DirectX::XMFLOAT3 target(0, 0, eye.z + 1);
+	DirectX::XMFLOAT3 up(0, 1, 0);
+	camera.InitCamera(eye, target, up);
+	//パースペクティブ行列の生成
+	XMMATRIX projectionMatrix = DirectX::XMMatrixPerspectiveFovLH(DirectX::XM_PIDIV2, static_cast<float>(window_Width) / static_cast<float>(window_Height), 1.0f, 10000.0f);
+	//リソース設定
+	D3D12_RESOURCE_DESC resDesc = {};
+	resDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	resDesc.Width = sizeof(MatrixData);
+	resDesc.Height = 1;
+	resDesc.DepthOrArraySize = 1;
+	resDesc.MipLevels = 1;
+	resDesc.Format = DXGI_FORMAT_UNKNOWN;
+	resDesc.SampleDesc.Count = 1;
+	resDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+	resDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+	//ヒープ設定
+	D3D12_HEAP_PROPERTIES heapProp = {};
+	heapProp.Type = D3D12_HEAP_TYPE_UPLOAD;
+	heapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	heapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	//定数バッファの生成
+	hr = m_device->CreateCommittedResource(
 		&heapProp,
-		D3D12_HEAP_FLAG_NONE,   
+		D3D12_HEAP_FLAG_NONE,
 		&resDesc,
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
-		IID_PPV_ARGS(&constBuffer)
+		IID_PPV_ARGS(&m_constBuffer)
 	);
-	//Create ConstantBuffer
-	/*
-	Map can get Buffer data pointer.
-	we can use this variable to update Buffer data
-	*/
-	hr = constBuffer->Map(0, nullptr, (void**)&mapMatrix);
+	if (FAILED(hr)) {
+		std::cout << "Failed to Create m_constBuffer" << std::endl;
+		return hr;
+	}
+	hr = m_constBuffer->Map(0, nullptr, (void**)&m_mapMatrix);
 	if (FAILED(hr)) {
 		std::cout << "Failed to Map constBuffer\n";
 		return hr;
 	}
-	for (int i = 0; i < MAX_OBJECT_COUNT; i++) {
-		(mapMatrix + i)->v = camera.viewMatrix;
-		(mapMatrix + i)->p = projectionMatrix;
-		(mapMatrix + i)->eye = eye;
-	}
-	
-	/*-----Create ConstanBufferView-----*/
-	//describe DescriptorHeap
+	(m_mapMatrix)->v = camera.viewMatrix;
+	(m_mapMatrix)->p = projectionMatrix;
+	(m_mapMatrix)->eye = eye;
+
+
+	/*-----constBufferViewの生成-----*/
+	//ディスクリプタヒープの設定
 	D3D12_DESCRIPTOR_HEAP_DESC descHeapDesc = {};
 	descHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	descHeapDesc.NodeMask = 0;
-	descHeapDesc.NumDescriptors = MAX_OBJECT_COUNT;
+	descHeapDesc.NumDescriptors = 1;
 	descHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-	//Create DescriptorHeap
-	hr = device->CreateDescriptorHeap(&descHeapDesc, IID_PPV_ARGS(&cbvHeap));
+	//ディスクリプタヒープの生成
+	hr = m_device->CreateDescriptorHeap(&descHeapDesc, IID_PPV_ARGS(&m_cbvHeap));
 	if (FAILED(hr)) {
 		std::cout << "Failed to Create descHeapDesc\n";
 		return hr;
 	}
-	//Get DescriptorHeap Handle where its start
-	auto handleOffset = cbvHeap->GetCPUDescriptorHandleForHeapStart();
-	//describe ConstantBufferView
+	//ディスクリプタヒープのスタート位置(CPU側)の取得
+	D3D12_CPU_DESCRIPTOR_HANDLE handleOffset = m_cbvHeap->GetCPUDescriptorHandleForHeapStart();
+	//定数バッファビューの設定
 	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc = {};
-	cbvDesc.BufferLocation = constBuffer->GetGPUVirtualAddress();
+	cbvDesc.BufferLocation = m_constBuffer->GetGPUVirtualAddress();
 	cbvDesc.SizeInBytes = sizeof(MatrixData);
-	//Create ConstantBufferView
-	for (int i = 0; i < MAX_OBJECT_COUNT; i++) {
-		device->CreateConstantBufferView(&cbvDesc, handleOffset);
-		handleOffset.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-		cbvDesc.BufferLocation += sizeof(MatrixData);
-	}
+	//定数バッファビューの生成
+	m_device->CreateConstantBufferView(&cbvDesc, handleOffset);
+
 	return S_OK;
 }
 
 HRESULT DirectXController::CreateShaders() {
-	HRESULT hr;
 	
-	hr = D3DCompileFromFile(L"VertexShader.hlsl", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "main", "vs_5_0", D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, 0, &vertexShader, &errorBlob);
-	if (FAILED(hr)) {
-		if (hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND)) {
-			//cannnot find shader File, maybe there is Compiled Shader File
-			hr = D3DReadFileToBlob(L"VertexShader.cso", &vertexShader);
-			if (FAILED(hr)) {
-				std::cout << "Error : There is no VertexShader" << std::endl;
-				return hr;
-			}
-		}
-		else {
-			std::string errstr;
-			errstr.resize(errorBlob->GetBufferSize());
-			std::copy_n((char*)errorBlob->GetBufferPointer(), errorBlob->GetBufferSize(), errstr.begin());
-			errstr += "\n";
-
-			std::cout << "Failed to Compile VertexShader\n";
-			return hr;
-		}
+	if (FAILED(m_vertexShader.CreateShader(L"VertexShader.hlsl", "main", "vs_5_0", m_errorBlob))) {
+		return ErrorMessage("Failed to CreateShader");
+	}
+	if (FAILED(m_pixelShader.CreateShader(L"PixelShader.hlsl", "main", "ps_5_0", m_errorBlob))) {
+		return ErrorMessage("Failed to CreateShader");
+	}
+	if (FAILED(m_fvertexShader.CreateShader(L"finalRenderVertexShader.hlsl", "main", "vs_5_0", m_errorBlob))) {
+		return ErrorMessage("Failed to CreateShader");;
+	}
+	if (FAILED(m_fpixelShader.CreateShader(L"finalRenderPixelShader.hlsl", "main", "ps_5_0", m_errorBlob))) {
+		return ErrorMessage("Failed to CreateShader");
 	}
 
-	//PixelShaderのコンパイル
-	hr = D3DCompileFromFile(L"PixelShader.hlsl", nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, "main", "ps_5_0", D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, 0, &pixelShader, &errorBlob);
-	if (FAILED(hr)) {
-		if (hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND)) {
-			hr = D3DReadFileToBlob(L"PixelShader.cso", &pixelShader);
-			if (FAILED(hr)) {
-				std::cout << "Error : There is no PixelShader" << std::endl;
-				return hr;
-			}
-		}
-		else {
-			std::string errstr;
-			errstr.resize(errorBlob->GetBufferSize());
-			std::copy_n((char*)errorBlob->GetBufferPointer(), errorBlob->GetBufferSize(), errstr.begin());
-			errstr += "\n";
-
-			std::cout << "Failed to Compile PixelShader\n";
-			return hr;
-		}
-	}
 	return S_OK;
 }
 
-HRESULT DirectXController::SetGraphicsPipeLine() {
+HRESULT DirectXController::CreateFinalGraphicsPipeLine() {
 	HRESULT hr;
+	/*
+	最終出力結果を張り付けるポリゴンを表示するためのグラフィクスパイプライン
+	*/
+	/*-----インプットレイアウトの定義-----*/
+	D3D12_INPUT_ELEMENT_DESC inputLayout[] = {
+		{ 
+			"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0	
+		},
+		{
+			"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
+		},
+	};
 
-	/*-----Create RootSignature ... RootSignature Summarize DescriptorHeaps, and so on(what is rootSignature, descriptor...? ->https://biwanoie.tokyo/ayyvp/ )-----*/
-	//describe sampler
+	/*-----GraphicsPipeLineStateの定義-----*/
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC gPipeLine = {};
+	//インプットレイアウトの設定
+	gPipeLine.InputLayout.NumElements = _countof(inputLayout);
+	gPipeLine.InputLayout.pInputElementDescs = inputLayout;
+	//シェーダの設定
+	gPipeLine.VS.pShaderBytecode = m_fvertexShader.GetBufferPointer();
+	gPipeLine.VS.BytecodeLength = m_fvertexShader.GetBufferSize();
+	gPipeLine.PS.pShaderBytecode = m_fpixelShader.GetBufferPointer();
+	gPipeLine.PS.BytecodeLength = m_fpixelShader.GetBufferSize();
+	//SampleStateとRasterizerStateの設定
+	gPipeLine.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
+	gPipeLine.RasterizerState.MultisampleEnable = false;
+	gPipeLine.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+	gPipeLine.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+	gPipeLine.RasterizerState.DepthClipEnable = true;
+	//BlendStateの設定	
+	D3D12_RENDER_TARGET_BLEND_DESC rtBlendDesc = {};
+	rtBlendDesc.BlendEnable = false;
+	rtBlendDesc.LogicOpEnable = false;
+	rtBlendDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+	gPipeLine.BlendState.RenderTarget[0] = rtBlendDesc;
+	gPipeLine.BlendState.AlphaToCoverageEnable = false;
+	gPipeLine.BlendState.IndependentBlendEnable = false;
+
+	//PrimitiveTopologyの設定
+	gPipeLine.IBStripCutValue = D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED;
+	gPipeLine.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	//RenderTargetの設定
+	gPipeLine.NumRenderTargets = 1;
+	gPipeLine.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+	//Samplerの設定
+	gPipeLine.SampleDesc.Count = 1;
+	gPipeLine.SampleDesc.Quality = 0;
+	gPipeLine.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
+	/*-----ルートシグネチャの設定-----*/
+	D3D12_DESCRIPTOR_RANGE range = {};
+	range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	range.BaseShaderRegister = 0;
+	range.NumDescriptors = 1;
+	D3D12_ROOT_PARAMETER rootParam = {};
+	rootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParam.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	rootParam.DescriptorTable.pDescriptorRanges = &range;
+	rootParam.DescriptorTable.NumDescriptorRanges = 1;
 	D3D12_STATIC_SAMPLER_DESC samplerDesc = {};
 	samplerDesc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 	samplerDesc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
@@ -335,60 +524,99 @@ HRESULT DirectXController::SetGraphicsPipeLine() {
 	samplerDesc.MinLOD = 0.0f;
 	samplerDesc.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	samplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
-	//Create Descriptor Table
+	D3D12_ROOT_SIGNATURE_DESC rootSigDesc = {};
+	rootSigDesc.NumParameters = 1;
+	rootSigDesc.pParameters = &rootParam;
+	rootSigDesc.NumStaticSamplers = 1;
+	rootSigDesc.pStaticSamplers = &samplerDesc;
+	rootSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+	hr = D3D12SerializeRootSignature(&rootSigDesc, D3D_ROOT_SIGNATURE_VERSION_1, &m_frootSig, &m_errorBlob);
+	if (FAILED(hr)) {
+		std::cout << "Failed to Serialize finalRenderRootSignature" << std::endl;
+		return hr;
+	}
+	hr = m_device->CreateRootSignature(0, m_frootSig->GetBufferPointer(), m_frootSig->GetBufferSize(), IID_PPV_ARGS(&m_frootsignature));
+	if (FAILED(hr)) {
+		std::cout << "Failed to Create finalRenderRootSignature" << std::endl;
+		return hr;
+	}
+	gPipeLine.pRootSignature = m_frootsignature;
+	//GraphicPipeLineStateの生成
+	hr = m_device->CreateGraphicsPipelineState(&gPipeLine, IID_PPV_ARGS(&m_fPipeLineState));
+	if (FAILED(hr)) {
+		std::cout << "Failed to Create finalGraphicsPipelineState\n";
+		return hr;
+	}
+	return S_OK;
+}
+
+HRESULT DirectXController::SetGraphicsPipeLine() {
+	HRESULT hr;
+
+	//サンプラーの設定
+	D3D12_STATIC_SAMPLER_DESC samplerDesc = {};
+	samplerDesc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	samplerDesc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	samplerDesc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	samplerDesc.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
+	samplerDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+	samplerDesc.MaxLOD = D3D12_FLOAT32_MAX;
+	samplerDesc.MinLOD = 0.0f;
+	samplerDesc.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	samplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
+	//ディスクリプタテーブルの設定
 	D3D12_DESCRIPTOR_RANGE desTbRange[3] = {};
-	//DescriptorRange for ConstantBuffer
+	//定数バッファのディスクリプタレンジ
 	desTbRange[0].NumDescriptors = 1;
 	desTbRange[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
 	desTbRange[0].BaseShaderRegister = 0;
 	desTbRange[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-	//DescriptorRange for MaterialBuffer
+	//マテリアルバッファのディスクリプタレンジ
 	desTbRange[1].NumDescriptors = 1;
 	desTbRange[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
 	desTbRange[1].BaseShaderRegister = 1;
 	desTbRange[1].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-	//DescriptorRange for TextureBuffer
+	//テクスチャバッファのディスクリプタレンジ
 	desTbRange[2].NumDescriptors = 3;
 	desTbRange[2].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 	desTbRange[2].BaseShaderRegister = 0;
 	desTbRange[2].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-	//Create RootParameter
+	//ルートパラメータの設定(レンジ1)
 	D3D12_ROOT_PARAMETER rootParam[3] = {};
 	rootParam[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootParam[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 	rootParam[0].DescriptorTable.pDescriptorRanges = &desTbRange[0];
 	rootParam[0].DescriptorTable.NumDescriptorRanges = 1;
-
+	//ルートパラメータの設定(レンジ2)
 	rootParam[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootParam[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	rootParam[1].DescriptorTable.pDescriptorRanges = &desTbRange[1];
 	rootParam[1].DescriptorTable.NumDescriptorRanges = 1;
-	
+	//ルートパラメータの設定(レンジ3)
 	rootParam[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootParam[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	rootParam[2].DescriptorTable.pDescriptorRanges = &desTbRange[2];
 	rootParam[2].DescriptorTable.NumDescriptorRanges = 1;
-
-	//describe RootSignature
+	//ルートシグネチャの設定
 	D3D12_ROOT_SIGNATURE_DESC rootSigDesc = {};
 	rootSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 	rootSigDesc.pParameters = rootParam;
 	rootSigDesc.NumParameters = 3;
 	rootSigDesc.pStaticSamplers = &samplerDesc;
 	rootSigDesc.NumStaticSamplers = 1;
-	hr = D3D12SerializeRootSignature(&rootSigDesc, D3D_ROOT_SIGNATURE_VERSION_1_0, &rootSig, &errorBlob);
+	hr = D3D12SerializeRootSignature(&rootSigDesc, D3D_ROOT_SIGNATURE_VERSION_1_0, &m_rootSig, &m_errorBlob);
 	if (FAILED(hr)) {
 		std::cout << "Failed to SealizeRootSignature\n";
 		return hr;
 	}
 	//Create RootSignature
-	hr = device->CreateRootSignature(0, rootSig->GetBufferPointer(), rootSig->GetBufferSize(), IID_PPV_ARGS(&rootsignature));
+	hr = m_device->CreateRootSignature(0, m_rootSig->GetBufferPointer(), m_rootSig->GetBufferSize(), IID_PPV_ARGS(&m_rootsignature));
 	if (FAILED(hr)) {
 		std::cout << "Failed to CreateRootSignature\n";
 		return hr;
 	}
 
-	/*-----Create GraphicsPipeLineState-----*/
+	/*-----グラフィックパイプラインステートの生成-----*/
 	//Describe InputLayout
 	D3D12_INPUT_ELEMENT_DESC inputLayout[] = {
 		{
@@ -404,12 +632,12 @@ HRESULT DirectXController::SetGraphicsPipeLine() {
 	/*-----GraphicsPipeLineStateの定義-----*/
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC gPipeLine = {};
 	//RootSignatureの設定
-	gPipeLine.pRootSignature = rootsignature;
+	gPipeLine.pRootSignature = m_rootsignature;
 	//Shaderの設定
-	gPipeLine.VS.pShaderBytecode = vertexShader->GetBufferPointer();
-	gPipeLine.VS.BytecodeLength = vertexShader->GetBufferSize();
-	gPipeLine.PS.pShaderBytecode = pixelShader->GetBufferPointer();
-	gPipeLine.PS.BytecodeLength = pixelShader->GetBufferSize();
+	gPipeLine.VS.pShaderBytecode = m_vertexShader.GetBufferPointer();
+	gPipeLine.VS.BytecodeLength = m_vertexShader.GetBufferSize();
+	gPipeLine.PS.pShaderBytecode = m_pixelShader.GetBufferPointer();
+	gPipeLine.PS.BytecodeLength = m_pixelShader.GetBufferSize();
 	//SampleStateとRasterizerStateの設定
 	gPipeLine.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
 	gPipeLine.RasterizerState.MultisampleEnable = false;
@@ -441,7 +669,7 @@ HRESULT DirectXController::SetGraphicsPipeLine() {
 	gPipeLine.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
 	gPipeLine.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 	//GraphicPipeLineStateの生成
-	hr = device->CreateGraphicsPipelineState(&gPipeLine, IID_PPV_ARGS(&PipeLineState));
+	hr = m_device->CreateGraphicsPipelineState(&gPipeLine, IID_PPV_ARGS(&m_PipeLineState));
 	if (FAILED(hr)) {
 		std::cout << "Failed to Create GraphicsPipelineState\n";
 		return hr;
@@ -452,148 +680,166 @@ HRESULT DirectXController::SetGraphicsPipeLine() {
 	return S_OK;
 }
 
-HRESULT DirectXController::Draw(Camera& camera) {
+HRESULT DirectXController::DrawFromCamera(Camera& camera) {
+	//CPUディスクリプターヒープスタート位置の取得
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvH = m_mrtvHeap->GetCPUDescriptorHandleForHeapStart();
+	D3D12_CPU_DESCRIPTOR_HANDLE dsvH = m_dsvHeap->GetCPUDescriptorHandleForHeapStart();
 
-	//Set ViewPort
-	D3D12_VIEWPORT vp = {};
-	vp.Width = window_Width;
-	vp.Height = window_Height;
-	vp.TopLeftX = 0;
-	vp.TopLeftY = 0;
-	vp.MaxDepth = 1.0f;
-	vp.MinDepth = 0.0f;
+	//リソースバリアの更新(シェーダリソースからレンダーターゲット)
+	m_cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderBuffers[0], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
-	//Set ScisorsRect
-	D3D12_RECT sr = {};
-	sr.top = 0;
-	sr.left = 0;
-	sr.right = sr.left + window_Width;
-	sr.bottom = sr.top + window_Height;
-
-	/*-----push Commands to ComandQueue-----*/
-	//Get BackBuffer to Draw
-	auto bbID = swapchain->GetCurrentBackBufferIndex();
-
-	/*
-	this Application use Buffer to Draw Image.
-	Application has to tell buffer that how buffer is used now.
-	*/
-	D3D12_RESOURCE_BARRIER BarrierDesc = {};
-	BarrierDesc.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	BarrierDesc.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	BarrierDesc.Transition.pResource = backBuffers[bbID];
-	BarrierDesc.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-	BarrierDesc.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
-	BarrierDesc.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
-	cmdList->ResourceBarrier(1, &BarrierDesc);
-
-	cmdList->SetPipelineState(PipeLineState);
-
-	//Set RenderTargetBufferView and Depth/StencilBUfferView
-	auto rtvH = rtvHeap->GetCPUDescriptorHandleForHeapStart();
-	auto dsvH = dsvHeap->GetCPUDescriptorHandleForHeapStart();
-	rtvH.ptr += bbID * device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-	cmdList->OMSetRenderTargets(1, &rtvH, false, &dsvH);
-
-	//Clear Depth/StencilBuffer
-	cmdList->ClearDepthStencilView(dsvH, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-
-	//Clear RenderTargetBuffer
+	//レンダーターゲットのクリア
 	float clearColor[] = { 0.5f,0.5f,0.7f,1.0f };
-	cmdList->ClearRenderTargetView(rtvH, clearColor, 0, nullptr);
+	m_cmdList->ClearRenderTargetView(rtvH, clearColor, 0, nullptr);
 
-	cmdList->RSSetViewports(1, &vp);
-	cmdList->RSSetScissorRects(1, &sr);
+	//深度/ステンシルバッファのクリア
+	m_cmdList->ClearDepthStencilView(dsvH, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+	UpdateViewMatrix(camera, 0);
+	//ここから、オブジェクトの数だけループ
+	for (int i = 0; i < m_objsOBJ.size(); i++) {
+		//パイプラインとルートシグネチャをセット
+		m_cmdList->SetPipelineState(m_PipeLineState);
+		m_cmdList->SetGraphicsRootSignature(m_rootsignature);
 
-	cmdList->SetGraphicsRootSignature(rootsignature);
+		//レンダーターゲットと深度/ステンシルバッファをセット
+		m_cmdList->OMSetRenderTargets(1, &rtvH, false, &dsvH);
 
-	D3D12_GPU_DESCRIPTOR_HANDLE heapHCBV, heapHMat;
+		//ビューポートとシザー矩形をセット
+		m_cmdList->RSSetViewports(1, &m_vp);
+		m_cmdList->RSSetScissorRects(1, &m_sr);
 
-	heapHCBV = cbvHeap->GetGPUDescriptorHandleForHeapStart();
+		//プリミティブトポロジをセット
+		m_cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-	if (LoadedObjCount > 0) {
-		for (int objCnt = 0; objCnt < LoadedObjCount; objCnt++) {
-
-			D3D12_GPU_DESCRIPTOR_HANDLE tmpHandle;
-			UpdateWorldMatrix(objs[objCnt], objCnt);
-			UpdateViewMatrix(camera, objCnt);
-
-			//Switch ConstantBuffer for Each Objects
-			cmdList->SetDescriptorHeaps(1, &cbvHeap);
-			tmpHandle.ptr = heapHCBV.ptr + device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * objCnt;
-			cmdList->SetGraphicsRootDescriptorTable(0, tmpHandle);
-
-			cmdList->IASetVertexBuffers(0, 1, &objs[objCnt].vbView);
-			cmdList->IASetIndexBuffer(&objs[objCnt].ibView);
-
-			//Switch MaterialBuffer and TextureBuffer for Each Vertices
-			heapHMat = objs[objCnt].materialDescHeap->GetGPUDescriptorHandleForHeapStart();
-			for (int i = 0; i < objs[objCnt].matRef.size(); i++) {
-				//set Texture
-				cmdList->SetDescriptorHeaps(1, &objs[objCnt].textureDescHeap); //texture
-				D3D12_GPU_DESCRIPTOR_HANDLE heapH = objs[objCnt].textureDescHeap->GetGPUDescriptorHandleForHeapStart();
-				heapH.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * (3 * objs[objCnt].matRef[i].matID);
-				cmdList->SetGraphicsRootDescriptorTable(2, heapH);
-				//set Material
-				cmdList->SetDescriptorHeaps(1, &objs[objCnt].materialDescHeap); //material
-				tmpHandle.ptr = heapHMat.ptr + device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * objs[objCnt].matRef[i].matID;
-				cmdList->SetGraphicsRootDescriptorTable(1, tmpHandle);
-				cmdList->DrawIndexedInstanced(objs[objCnt].matRef[i].idxNum, 1, objs[objCnt].matRef[i].idxOffset, 0, 0);
-			}
+		//オブジェクトを描画
+		m_mapMatrix->w = m_objsOBJ[i]->m_wMatrix;
+		for (int j = 0; j < m_objsOBJ[i]->m_obj.size(); j++) {
+			m_objsOBJ[i]->m_obj[j]->Draw(m_cmdList, m_cbvHeap);
 		}
+
+
+		//コマンドリストを閉じる
+		m_cmdList->Close();
+
+		//コマンドを実行
+		ID3D12CommandList* cmdlists[] = { m_cmdList };
+		m_cmdQueue->ExecuteCommandLists(1, cmdlists);
+
+		//コマンドの実行終了を待つ
+		m_cmdQueue->Signal(m_fence, ++m_fenceVal);
+		if (m_fence->GetCompletedValue() != m_fenceVal) {
+			auto event = CreateEvent(nullptr, false, false, nullptr);
+			m_fence->SetEventOnCompletion(m_fenceVal, event);
+			WaitForSingleObject(event, INFINITE);
+			CloseHandle(event);
+		}
+
+		//コマンドのリセット
+		m_cmdAllocator->Reset();
+		m_cmdList->Reset(m_cmdAllocator, nullptr);
+		//}
 	}
+	//リソースバリアの更新
+	m_cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_renderBuffers[0], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
 
-	BarrierDesc.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
-	BarrierDesc.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
-	cmdList->ResourceBarrier(1, &BarrierDesc);
+	return S_OK;
+}
 
-	//Close CommandList
-	cmdList->Close();
-	//Execute Command
-	ID3D12CommandList* cmdlists[] = { cmdList };
-	cmdQueue->ExecuteCommandLists(1, cmdlists);
+HRESULT DirectXController::finalDraw() {
+	//バックバッファのインデックス取得
+	UINT bbID = m_swapchain->GetCurrentBackBufferIndex();
 
-	//wait for GPU signal which says "Finish Drawing"
-	cmdQueue->Signal(fence, ++fenceVal);
-	if (fence->GetCompletedValue() != fenceVal) {
+	//CPUディスクリプタヒープスタート位置の取得
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvH = m_rtvHeap->GetCPUDescriptorHandleForHeapStart();
+	rtvH.ptr += bbID * m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	D3D12_CPU_DESCRIPTOR_HANDLE dsvH = m_dsvHeap->GetCPUDescriptorHandleForHeapStart();
+	
+	//リソースバリアの更新
+	m_cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_backBuffers[bbID], D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+
+	//レンダーターゲットのクリア
+	float clearColor[] = { 0.5f,0.5f,0.5f,1.0f };
+	m_cmdList->ClearRenderTargetView(rtvH, clearColor, 0, nullptr);
+
+	//深度/ステンシルバッファのクリア
+	m_cmdList->ClearDepthStencilView(dsvH, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+	
+	//パイプラインとルートシグネチャを設定
+	m_cmdList->SetPipelineState(m_fPipeLineState);
+	m_cmdList->SetGraphicsRootSignature(m_frootsignature);
+
+	//レンダーターゲットを設定
+	m_cmdList->OMSetRenderTargets(1, &rtvH, false, &dsvH);
+
+	//ビューポートとシザー矩形の設定
+	m_cmdList->RSSetViewports(1, &m_vp);
+	m_cmdList->RSSetScissorRects(1, &m_sr);
+
+	//ディスクリプタヒープとディスクリプタを設定
+	D3D12_GPU_DESCRIPTOR_HANDLE handle = m_msrvHeap->GetGPUDescriptorHandleForHeapStart();
+	m_cmdList->SetDescriptorHeaps(1, &m_msrvHeap);
+	m_cmdList->SetGraphicsRootDescriptorTable(0, handle);
+
+	//プリミティブトポロジの設定
+	m_cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+
+	//頂点のセット
+	m_cmdList->IASetVertexBuffers(0, 1, &m_finarRenderVbv);
+	
+	//描画
+	m_cmdList->DrawInstanced(4, 1, 0, 0);
+
+	//リソースバリアの更新
+	m_cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_backBuffers[bbID], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+
+	//コマンドリストを閉じる
+	m_cmdList->Close();
+
+	//コマンドの実行
+	ID3D12CommandList* cmdlists[] = { m_cmdList };
+	m_cmdQueue->ExecuteCommandLists(1, cmdlists);
+
+	//コマンドの実行終了を待つ
+	m_cmdQueue->Signal(m_fence, ++m_fenceVal);
+	if (m_fence->GetCompletedValue() != m_fenceVal) {
 		auto event = CreateEvent(nullptr, false, false, nullptr);
-		fence->SetEventOnCompletion(fenceVal, event);
+		m_fence->SetEventOnCompletion(m_fenceVal, event);
 		WaitForSingleObject(event, INFINITE);
 		CloseHandle(event);
 	}
 
-	//Reset Command
-	cmdAllocator->Reset();
-	cmdList->Reset(cmdAllocator, nullptr);
+	//コマンドのリセット
+	m_cmdAllocator->Reset();
+	m_cmdList->Reset(m_cmdAllocator, nullptr);
 
-	//Swap the BackBuffer to Display rendering Image
-	swapchain->Present(1, 0);
-	
+	//バックバッファの内容を表示
+	m_swapchain->Present(1, 0);
+
 	return S_OK;
 }
 
 HRESULT DirectXController::LoadObject(const char* objName) {
 	HRESULT hr;
 	PathController pc;
+	if (m_LoadedObjCount < MAX_OBJECT_COUNT) {
+		m_objsOBJ.push_back(new DX12ObjectFormatOBJ()); //一つ要素を確保する
+		if (FAILED(m_objsOBJ[m_objsOBJ.size() - 1]->LoadVertexFromOBJFile(objName, m_device))) {
+			delete(m_objsOBJ[m_objsOBJ.size() - 1]);
+			m_objsOBJ.erase(m_objsOBJ.end());
 
-	if (LoadedObjCount < MAX_OBJECT_COUNT) { //Check Objects Count
-		hr = objs[LoadedObjCount].OBJ_LoadModelData(objName, device);
-		if (FAILED(hr)) {
-			std::cout << "Cannot Create New Object" << std::endl;
-			objs[LoadedObjCount].Release(); //Release Memory
 			return E_FAIL;
 		}
-		char name[256];
-		pc.GetLeafDirectryName(objName, name, 256); //ObjectName is [***.obj]
-		objs[LoadedObjCount].objName = name;
-		LoadedObjCount++; //Increment LoadedObjCount if Object Load is success
+
+		//成功したらロード済みオブジェクト数を増やす
+		m_LoadedObjCount++;
 	}
-	else { //Objects Count is Max
-		std::cout << "Cannot Load New Object any more" << std::endl;
-		return E_FAIL;
-	}
+
+	return S_OK;
+}
+
+HRESULT DirectXController::DeleteObject(int objIdx) {
+	delete(m_objsOBJ[objIdx]);
+	m_objsOBJ.erase(m_objsOBJ.begin() + objIdx);
 
 	return S_OK;
 }
@@ -633,21 +879,18 @@ HRESULT DirectXController::UpdateWorldMatrix(Object& obj, int objIndex) {
 
 	XMMATRIX worldMat = sizMat * rotMat * posMat; //Create New Matrix to hand mapMatrix
 
-	(mapMatrix + objIndex)->w = worldMat;
+	(m_mapMatrix + objIndex)->w = worldMat;
 
 	return S_OK;
 }
 
 HRESULT DirectXController::UpdateViewMatrix(Camera& camera, int objIndex) {
-	(mapMatrix + objIndex)->v = camera.viewMatrix; //set Camera's viewMatrix to mapMatrix
-	(mapMatrix + objIndex)->eye = camera.pos;
+	m_mapMatrix->v = camera.viewMatrix; //set Camera's viewMatrix to mapMatrix
+	m_mapMatrix->eye = camera.pos;
 
 	return S_OK;
 }
 
-/*
-this function is use for desplay DirectX Error
-*/
 void DirectXController::EnableDebugLayer() {
 	ID3D12Debug* debugLayer = nullptr;
 	auto result = D3D12GetDebugInterface(IID_PPV_ARGS(&debugLayer));
@@ -656,32 +899,44 @@ void DirectXController::EnableDebugLayer() {
 }
 
 void DirectXController::Release() {
-	if (device)device->Release();
-	if (factory)factory->Release();
-	if (swapchain)swapchain->Release();
+	if (m_device)m_device->Release();
+	if (m_factory)m_factory->Release();
+	if (m_swapchain)m_swapchain->Release();
 
-	if (cmdAllocator)cmdAllocator->Release();
-	if (cmdList)cmdList->Release();
-	if (cmdQueue)cmdQueue->Release();
+	if (m_cmdAllocator)m_cmdAllocator->Release();
+	if (m_cmdList)m_cmdList->Release();
+	if (m_cmdQueue)m_cmdQueue->Release();
 
-	if (rtvHeap)rtvHeap->Release();
-	if (dsvHeap)dsvHeap->Release();
-	if (cbvHeap)cbvHeap->Release();
+	if (m_rtvHeap)m_rtvHeap->Release();
+	if (m_mrtvHeap)m_mrtvHeap->Release();
+	if (m_dsvHeap)m_dsvHeap->Release();
+	if (m_sddvHeap)m_sddvHeap->Release();
+	if (m_sdtvHeap)m_sdtvHeap->Release();
+	if (m_cbvHeap)m_cbvHeap->Release();
 
-	if (vertexShader)vertexShader->Release();
-	if (pixelShader)pixelShader->Release();
-	if (errorBlob)errorBlob->Release();
-	if (rootSig)rootSig->Release();  
+	/*if (m_vertexShader)m_vertexShader->Release();
+	if (m_pixelShader)m_pixelShader->Release();*/
+	if (m_errorBlob)m_errorBlob->Release();
+	if (m_rootSig)m_rootSig->Release();  
 
-	if (fence)fence->Release();
+	if (m_PipeLineState)m_PipeLineState->Release();
+	if (m_smPipeLineState)m_smPipeLineState->Release();
+	if (m_pePipeLineState)m_pePipeLineState->Release();
+	
+	if (m_rootsignature)m_rootsignature->Release();   
 
-	if (PipeLineState)PipeLineState->Release();
-
-	if (rootsignature)rootsignature->Release();   
-
-	for (int i = 0; i < backBuffers.size(); i++) {
-		if (backBuffers[i]) backBuffers[i]->Release();
+	for (int i = 0; i < RT_BUFFER_COUNT; i++) {
+		if (m_backBuffers[i])m_backBuffers[i]->Release();
 	}
-	if (depthBuffer)depthBuffer->Release();
-	if (constBuffer)constBuffer->Release();
+	if (m_depthBuffer)m_depthBuffer->Release();
+	if (m_constBuffer)m_constBuffer->Release();
+	if (m_shadowBuffer)m_shadowBuffer->Release();
+	if (m_shadowConstBuffer)m_shadowConstBuffer->Release();
+	for (int i = 0; i < RT_MULTIPASS_COUNT; i++) {
+		if (m_renderBuffers[i])m_renderBuffers[i]->Release();
+	}
+	if (m_finalRenderPolygon)m_finalRenderPolygon->Release();
+
+	if (m_fence)m_fence->Release();
+
 }

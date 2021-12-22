@@ -22,12 +22,6 @@ void Camera::InitCamera(XMFLOAT3 apos, XMFLOAT3 atarget, XMFLOAT3 aup) {
 	viewMatrix = viewMatrixRotateY = XMMatrixLookAtLH(DirectX::XMLoadFloat3(&pos), DirectX::XMLoadFloat3(&target), DirectX::XMLoadFloat3(&up));
 }
 
-/*
-this Application, moving input is W/A/S/D and Shift or not.
-move Without Shift, camera move horizontal direction.
-move with Shift, camera move Vertical direction.
-so, not to move to camera's Direction, Matrix is separated ViewMatrix Rotated only y axis(viewMatrixRotateY) from ViewMatrix rotated x/y axis(viewMatrix)
-*/
 void Camera::update(XMFLOAT3 move, XMFLOAT3 rot, bool rotateFlag) {
 	//normalize move Vector
 	float len = sqrtf(pow(move.x, 2) + pow(move.y, 2) + pow(move.z, 2));

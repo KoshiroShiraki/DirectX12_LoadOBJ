@@ -20,25 +20,56 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h" />
+    <ClInclude Include="BaseWindowController.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="ConstValue.h" />
     <ClInclude Include="DirectXController.h" />
+    <ClInclude Include="DX12Object3D.h" />
+    <ClInclude Include="DX12ObjectFormatOBJ.h" />
+    <ClInclude Include="DX12Shader.h" />
+    <ClInclude Include="EditWindowController.h" />
+    <ClInclude Include="Light.h" />
+    <ClInclude Include="ListWindowController.h" />
+    <ClInclude Include="MainWindowController.h" />
     <ClInclude Include="Object.h" />
     <ClInclude Include="PathController.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ExcludedFromBuild>
     </ClInclude>
     <ClInclude Include="Input.h" />
+    <ClInclude Include="ErrorDebug.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Application.cpp" />
+    <ClCompile Include="BaseWindowController.cpp" />
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="DirectXController.cpp" />
+    <ClCompile Include="DX12Object3D.cpp" />
+    <ClCompile Include="DX12ObjectFormatOBJ.cpp" />
+    <ClCompile Include="DX12Shader.cpp" />
+    <ClCompile Include="EditWindowController.cpp" />
+    <ClCompile Include="ErrorDebug.cpp" />
     <ClCompile Include="Input.cpp" />
+    <ClCompile Include="Light.cpp" />
+    <ClCompile Include="ListWindowController.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="MainWindowController.cpp" />
     <ClCompile Include="Object.cpp" />
     <ClCompile Include="PathController.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <FxCompile Include="finalRenderPixelShader.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.0</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="finalRenderVertexShader.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
+    </FxCompile>
     <FxCompile Include="PixelShader.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
@@ -61,6 +92,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="BasicShader.hlsli" />
+    <None Include="finalRenderShader.hlsli" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
@@ -133,7 +165,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>D:\Visual Studio Projects\ObjectViewer\ObjectViewer_D3D12\DirectXTex-master\DirectXTex</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\Visual Studio Projects\HouseSimulator\HouseSimulator;D:\Visual Studio Projects\ObjectViewer\ObjectViewer_D3D12\DirectXTex-master\DirectXTex</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

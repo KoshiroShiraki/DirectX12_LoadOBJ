@@ -411,12 +411,12 @@ HRESULT Object::OBJ_LoadModelData(std::string path, ID3D12Device* device) {
 	/*-----Create VertexBufferView-----*/
 	vbView = {};
 	vbView.BufferLocation = vertexBuffer->GetGPUVirtualAddress();
-	vbView.SizeInBytes = vertices.size() * sizeof(OBJVertex);
+	vbView.SizeInBytes = vertexBuffer->GetDesc().Width;
 	vbView.StrideInBytes = sizeof(OBJVertex);
 
 	/*-----Create IndexBuffer-----*/
 	//Change ResourceDesc's Width
-	resDesc.Width = indices.size() * sizeof(indices[0]);
+	resDesc.Width = indices.size() * sizeof(unsigned);
 	//Create IndexBuffer
 	hr = device->CreateCommittedResource(&heapProp, D3D12_HEAP_FLAG_NONE, &resDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&indexBuffer));
 	if (FAILED(hr)) {
@@ -686,7 +686,62 @@ int Object::findMaterialIndex(std::vector<OBJMaterialRef> mr, std::string materi
 	return -1; 
 }
 
+HRESULT Object::DrawObjet(ID3D12GraphicsCommandList* cmdList, ID3D12PipelineState *pipelineState, ID3D12RootSignature* rootsignature, Camera camera, D3D12_CPU_DESCRIPTOR_HANDLE rtvH, D3D12_CPU_DESCRIPTOR_HANDLE dsvH, D3D12_VIEWPORT vp, D3D12_RECT rc) {
+	/*
+	//グラフィクスパイプラインのセット
+	cmdList->SetPipelineState(pipelineState);
 
+	//レンダーターゲットのセット
+	cmdList->OMSetRenderTargets(1, &rtvH, false, &dsvH);
+
+	//デプス/ステンシルバッファのセット
+	cmdList->ClearDepthStencilView(dsvH, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+
+	//ビューポートとシザー矩形のセット
+	cmdList->RSSetViewports(1, &vp);
+	cmdList->RSSetScissorRects(1, &rc);
+
+	//ルートシグネチャの設定
+	cmdList->SetGraphicsRootSignature(rootsignature);
+
+	D3D12_GPU_DESCRIPTOR_HANDLE heapHCBV, heapHMat;
+
+	heapHCBV = m_cbvHeap->GetGPUDescriptorHandleForHeapStart();
+
+	m_cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+	for (int objCnt = 0; objCnt < m_LoadedObjCount; objCnt++) {
+
+		D3D12_GPU_DESCRIPTOR_HANDLE tmpHandle;
+		UpdateWorldMatrix(m_objs[objCnt], objCnt);
+		UpdateViewMatrix(camera, objCnt);
+
+		//Switch ConstantBuffer for Each Objects
+		m_cmdList->SetDescriptorHeaps(1, &m_cbvHeap);
+		tmpHandle.ptr = heapHCBV.ptr + m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * objCnt;
+		m_cmdList->SetGraphicsRootDescriptorTable(0, tmpHandle);
+
+		m_cmdList->IASetVertexBuffers(0, 1, &m_objs[objCnt].vbView);
+		m_cmdList->IASetIndexBuffer(&m_objs[objCnt].ibView);
+
+		//Switch MaterialBuffer and TextureBuffer for Each Vertices
+		heapHMat = m_objs[objCnt].materialDescHeap->GetGPUDescriptorHandleForHeapStart();
+		for (int i = 0; i < m_objs[objCnt].matRef.size(); i++) {
+			//set Texture
+			m_cmdList->SetDescriptorHeaps(1, &m_objs[objCnt].textureDescHeap); //texture
+			D3D12_GPU_DESCRIPTOR_HANDLE heapH = m_objs[objCnt].textureDescHeap->GetGPUDescriptorHandleForHeapStart();
+			heapH.ptr += m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * (3 * m_objs[objCnt].matRef[i].matID);
+			m_cmdList->SetGraphicsRootDescriptorTable(2, heapH);
+			//set Material
+			m_cmdList->SetDescriptorHeaps(1, &m_objs[objCnt].materialDescHeap); //material
+			tmpHandle.ptr = heapHMat.ptr + m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * m_objs[objCnt].matRef[i].matID;
+			m_cmdList->SetGraphicsRootDescriptorTable(1, tmpHandle);
+			m_cmdList->DrawIndexedInstanced(m_objs[objCnt].matRef[i].idxNum, 1, m_objs[objCnt].matRef[i].idxOffset, 0, 0);
+		}
+	}*/
+
+	return S_OK;
+}
 
 template<typename T>
 void Object::vectorRelease(std::vector<T>& vec) {
