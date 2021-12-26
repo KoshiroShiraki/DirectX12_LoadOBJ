@@ -24,7 +24,7 @@ DX12Object3D::DX12Object3D() {
 	m_indices[4] = 2;
 	m_indices[5] = 3;
 
-	m_material.ambient = XMFLOAT4(1, 0, 0, 1);
+	m_material.ambient = XMFLOAT4(0, 0, 0, 1);
 	m_material.diffuse = XMFLOAT4(1, 1, 1, 1);
 	m_material.specular = XMFLOAT4(1, 1, 1, 1);
 	m_material.N = 0;
@@ -273,10 +273,12 @@ HRESULT DX12Object3D::Create(ID3D12Device* device) {
 	return S_OK;
 }
 
-HRESULT DX12Object3D::Draw(ID3D12GraphicsCommandList* cmdList, ID3D12DescriptorHeap* cbvHeap) {
+HRESULT DX12Object3D::Draw(ID3D12GraphicsCommandList* cmdList, ID3D12DescriptorHeap* cbvHeap, UINT cbOffset) {
 	//定数バッファをセット
 	cmdList->SetDescriptorHeaps(1, &cbvHeap);
-	cmdList->SetGraphicsRootDescriptorTable(0, cbvHeap->GetGPUDescriptorHandleForHeapStart());
+	D3D12_GPU_DESCRIPTOR_HANDLE handle = cbvHeap->GetGPUDescriptorHandleForHeapStart();
+	handle.ptr += cbOffset;
+	cmdList->SetGraphicsRootDescriptorTable(0, handle);
 
 	//頂点とインデックスをセット
 	cmdList->IASetVertexBuffers(0, 1, &m_vbv);

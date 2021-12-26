@@ -70,7 +70,7 @@ private :
 
 public :
 	HRESULT Create(ID3D12Device* device); //バッファを生成する
-	HRESULT Draw(ID3D12GraphicsCommandList* cmdList, ID3D12DescriptorHeap* cbvHeap); //コマンドリストにデータをセットして描画する
+	HRESULT Draw(ID3D12GraphicsCommandList* cmdList, ID3D12DescriptorHeap* cbvHeap, UINT cbOffset); //コマンドリストにデータをセットして描画する
 	void UpdateMaterial(float* data);
 	void Release(); //動的に確保したメモリを開放する
 };

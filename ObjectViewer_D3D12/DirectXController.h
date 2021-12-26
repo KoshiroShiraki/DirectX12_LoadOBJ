@@ -27,15 +27,25 @@
 #pragma comment(lib,"DirectXTex.lib")
 #pragma warning(disable: 4996)
 
-#define MAX_OBJECT_COUNT 10
+using namespace DirectX;
+
+struct ShadowMatrixData {
+	XMMATRIX w;
+	XMMATRIX v_light;
+	XMMATRIX p;
+
+	char padding[64];
+};
 
 struct MatrixData {
-	DirectX::XMMATRIX w;
-	DirectX::XMMATRIX v;
-	DirectX::XMMATRIX p;
-	DirectX::XMFLOAT3 eye;
+	XMMATRIX w;
+	XMMATRIX v_light;
+	XMMATRIX v_camera;
+	XMMATRIX p_perspective;
+	XMMATRIX p_orthographic;
+	XMFLOAT3 eye;
 
-	char padding[52];
+	char padding[180];
 };
 
 class DirectXController {
@@ -43,13 +53,14 @@ public:
 	DirectXController();
 	~DirectXController();
 
-	/*-----変数-----*/
 private:
 	UINT m_fenceVal = 0;
 	static const int RT_BUFFER_COUNT = 2; //バッファリング数
 	static const int RT_MULTIPASS_COUNT = 1; //マルチパスレンダリングのパス数
+	static const int MAX_OBJECT_COUNT = 50;
 
 	/*-----DirectXインターフェース-----*/
+
 public:
 	ID3D12Device* m_device = nullptr;
 
@@ -61,88 +72,83 @@ public:
 	ID3D12GraphicsCommandList* m_cmdList = nullptr;
 	ID3D12CommandQueue* m_cmdQueue = nullptr;
 
-	ID3D12DescriptorHeap* m_rtvHeap = nullptr; //最終出力結果を書き込むレンダーターゲットビューヒープ
-	ID3D12DescriptorHeap* m_mrtvHeap = nullptr; //マルチパスレンダリングにおける出力結果を書き込むレンダーターゲットビューヒープ
-	ID3D12DescriptorHeap* m_msrvHeap = nullptr; //マルチパスレンダリングにおける出力結果をテクスチャとして扱うためのシェーダーリソースビューヒープ
-	ID3D12DescriptorHeap* m_dsvHeap = nullptr;
-	ID3D12DescriptorHeap* m_sddvHeap = nullptr; //shadow Depth heap
-	ID3D12DescriptorHeap* m_sdtvHeap = nullptr; //shadow Texture heap
-	ID3D12DescriptorHeap* m_cbvHeap = nullptr;
-	ID3D12DescriptorHeap* m_scbvHeap = nullptr; //シャドウマップ用定数バッファディスクリプタヒープ
+	//シャドウマップ(ライト視点レンダリング) m_s〇〇
+	ID3D12Resource* m_shadowBuffer = nullptr; //深度/ステンシルバッファ or シェーダリソース(テクスチャ)バッファ
+	ID3D12DescriptorHeap* m_sdsvHeap = nullptr; //ディスクリプタヒープ(深度/ステンシルバッファ用)
+	ID3D12DescriptorHeap* m_ssrvHeap = nullptr; //ディスクリプタヒープ(シェーダリソース(テクスチャ)用)
+	ID3D12Resource* m_sconstBuffer = nullptr; //定数バッファ
+	ID3D12DescriptorHeap* m_scbvHeap = nullptr; //ディスクリプタヒープ(定数バッファ用)
+	ShadowMatrixData* m_smapMatrix; //シャドウマップ用定数バッファのマップ用変数
+	ID3D12PipelineState* m_spipeLineState = nullptr; //パイプラインステート
+	ID3DBlob* m_srootSig = nullptr; //ルートシグネチャのバイナリデータオブジェクト
+	ID3D12RootSignature* m_srootSignature = nullptr; //ルートシグネチャ
+	DX12Shader m_svertexShader; //バーテックスシェーダ
 
-	//ID3DBlob* m_vertexShader = nullptr;
-	//ID3DBlob* m_pixelShader = nullptr;
-	//ID3DBlob* m_fvertexShader = nullptr;
-	//ID3DBlob* m_fpixelShader = nullptr;
-	ID3DBlob* m_errorBlob = nullptr;
-	ID3DBlob* m_rootSig = nullptr;
-	ID3DBlob* m_frootSig = nullptr;
-	DX12Shader m_vertexShader;
-	DX12Shader m_pixelShader;
-	DX12Shader m_fvertexShader;
-	DX12Shader m_fpixelShader;
 
-	ID3D12PipelineState* m_PipeLineState = nullptr;
-	ID3D12PipelineState* m_fPipeLineState = nullptr;
-	ID3D12PipelineState* m_smPipeLineState = nullptr; //シャドウマップ用パイプライン
-	ID3D12PipelineState* m_pePipeLineState = nullptr;; //ポストエフェクト用パイプライン
+	//通常レンダリング(カメラ視点レンダリング) m_m〇〇
+	ID3D12Resource* m_mrenderBuffers[RT_MULTIPASS_COUNT]; //レンダーターゲットバッファ or シェーダリソース(テクスチャ)バッファ
+	ID3D12DescriptorHeap* m_mrtvHeap = nullptr; //ディスクリプタヒープ(レンダーターゲット用)
+	ID3D12DescriptorHeap* m_msrvHeap = nullptr; //ディスクリプタヒープ(シェーダリソース用)
+	ID3D12Resource* m_mdepthBuffer = nullptr; //深度/ステンシルバッファバッファ
+	ID3D12DescriptorHeap* m_mdsvHeap = nullptr; //ディスクリプタヒープ(深度/ステンシルバッファ用)
+	ID3D12Resource* m_mconstBuffer = nullptr; //定数バッファ
+	ID3D12DescriptorHeap* m_mcbvHeap = nullptr; //ディスクリプタヒープ(定数バッファ用)
+	MatrixData* m_mmapMatrix; //定数バッファのマップ用変数
+	ID3D12PipelineState* m_mpipeLineState = nullptr; //パイプラインステート
+	ID3DBlob* m_mrootSig = nullptr; //ルートシグネチャのバイナリデータオブジェクト
+	ID3D12RootSignature* m_mrootsignature = nullptr; //ルートシグネチャ
+	DX12Shader m_mvertexShader; //バーテックスシェーダ
+	DX12Shader m_mpixelShader; //ピクセルシェーダ
 
-	ID3D12RootSignature* m_rootsignature = nullptr;
-	ID3D12RootSignature* m_frootsignature = nullptr;
+	//最終レンダリング m_f〇〇
+	ID3D12Resource* m_backBuffers[RT_BUFFER_COUNT]; //バックバッファ(レンダーターゲットバッファ)
+	ID3D12DescriptorHeap* m_frtvHeap = nullptr; //ディスクリプタヒープ(レンダーターゲット用)
+	ID3D12PipelineState* m_fpipeLineState = nullptr; //パイプラインステート
+	ID3DBlob* m_frootSig = nullptr; //ルートシグネチャのバイナリデータオブジェクト
+	ID3D12RootSignature* m_frootsignature = nullptr; //ルートシグネチャ
+	DX12Shader m_fvertexShader; //バーテックスシェーダ
+	DX12Shader m_fpixelShader; //ピクセルシェーダ
+	ID3D12Resource* m_frenderPolygon = nullptr; //バーテックスバッファ(m_mrederBuffersの出力結果を張り付けるポリゴン用)
+	D3D12_VERTEX_BUFFER_VIEW m_frenderVbv; //バーテックスバッファビュー
 
-	ID3D12Resource* m_backBuffers[RT_BUFFER_COUNT]; //バックバッファ
-	ID3D12Resource* m_depthBuffer = nullptr; //深度バッファ
-	ID3D12Resource* m_constBuffer = nullptr; //定数バッファ
-	ID3D12Resource* m_shadowBuffer = nullptr; //シャドウマップバッファ(≒深度バッファ)
-	ID3D12Resource* m_shadowConstBuffer = nullptr; //シャドウマップ用定数バッファ
-	ID3D12Resource* m_renderBuffers[RT_MULTIPASS_COUNT]; //1パス目のレンダリング結果書き込みバッファ(テクスチャとして使う)
-
-	ID3D12Resource* m_finalRenderPolygon = nullptr; //最終レンダリング結果表示ポリゴン。出来上がったイメージテクスチャをこのポリゴンに張り付ける
-	D3D12_VERTEX_BUFFER_VIEW m_finarRenderVbv;
 	ID3D12Resource* m_floorPolygon = nullptr;
 	D3D12_VERTEX_BUFFER_VIEW m_floorPolygonVbv;
 
 	ID3D12Fence* m_fence = nullptr;
+
+	ID3DBlob* m_errorBlob = nullptr;
 	/*--------------------------*/
 
-public:
-	MatrixData* m_mapMatrix; //定数バッファのマップ用変数
-	MatrixData* m_shadowMapMatrix; //シャドウマップ用定数バッファのマップ用変数
-
-	//std::vector<Object> m_objs; //Array of Objects
-	//DX12Object3D* testOBJ;
-	//std::vector<DX12Object3D> testOBJs;
-	std::vector<DX12ObjectFormatOBJ*> m_objsOBJ;
-	int m_LoadedObjCount = 0;
+	std::vector<DX12ObjectFormatOBJ*> m_objsOBJ; //描画する3Dモデル
+	int m_LoadedObjCount = 0; //描画済みモデル数
 
 private:
 	D3D12_VIEWPORT m_vp = {};
 	D3D12_RECT m_sr = {};
 
 public:
-	HRESULT InitD3D(HWND hwnd);	//hwnd = MainWindowHandle
-	HRESULT CreateRenderResources(); //レンダリングバッファの生成(表示用、シャドウマップ用、ポストエフェクト用)
-	HRESULT CreateBackBuffers(); //最終的な描画結果を画面に出力するバッファ(マルチパス用)
-	HRESULT CreateRenderBuffers(); //途中の描画結果を出力するバッファ
-	HRESULT CreateDepthStencilBuffer(); //デプスステンシルバッファの生成
-	HRESULT CreateFinalRenderPolygon(); //査収レンダリング結果表示ポリゴンを生成する
-	HRESULT CreateFloorPolygon();
-	HRESULT CreateConstBuffers(Camera& camera, Light& light); //camera = camera
+	HRESULT InitD3D(HWND hwnd);
+	HRESULT CreateRenderResources();
+	HRESULT CreateBackBuffers();
+	HRESULT CreateRenderBuffers();
+	HRESULT CreateDepthStencilBuffer();
+	HRESULT CreateShadowBuffer();
+	HRESULT CreateFinalRenderPolygon();
+	HRESULT CreateConstBuffers(Camera& camera, Light& light);
 	HRESULT CreateShaders();
 	HRESULT CreateShadowMapGraphicsPipeLine();
-	HRESULT CreateForwardGraphicsPipeLine();
 	HRESULT CreateFinalGraphicsPipeLine();
 	HRESULT SetGraphicsPipeLine();
-	HRESULT DrawFromCamera(Camera& camera);	//camera = camera
 	HRESULT DrawFromLight(Light& light);
+	HRESULT DrawFromCamera(Camera& camera);
 	HRESULT finalDraw();
-	HRESULT UpdateObjTransform(HWND hwnd[9], int offset, XMFLOAT3& objData);	//hwnd[9] = EditBox used for Object transform, offset = arrays offset, objData = ObjectTransform data
-	HRESULT UpdateObjTransform(HWND hwnd[9], float value[3], int offset, XMFLOAT3& objData); //use for scroll bar
-	HRESULT UpdateWorldMatrix(Object& obj, int objIndex);	//obj = Object which you want to update, objIndex = obj's index
-	HRESULT UpdateViewMatrix(Camera &camera, int objIndex);	//camera = Camera which you want to update, objIndex = obj's index
-	HRESULT LoadObject(const char* objName); //objName = Object Name which you want to load
+	HRESULT UpdateObjTransform(HWND hwnd[9], int offset, XMFLOAT3& objData);
+	HRESULT UpdateObjTransform(HWND hwnd[9], float value[3], int offset, XMFLOAT3& objData);
+	HRESULT UpdateWorldMatrix(Object& obj, int objIndex);
+	HRESULT UpdateViewMatrix(Camera &camera, int objIndex);
+	HRESULT LoadObject(const char* objName);
 	HRESULT DeleteObject(int objIdx);
 	
 	void EnableDebugLayer();
-	void Release();	//safe Release function for DIrectX Interfaces
+	void Release();
 };

@@ -1,8 +1,10 @@
 cbuffer cbuff0 : register(b0)
 {
 	matrix w;
-	matrix v;
-	matrix p;
+	matrix v_light;
+	matrix v_camera;
+	matrix p_perspective;
+	matrix p_orthographic;
 	float3 eye;
 };
 
@@ -14,9 +16,7 @@ cbuffer Material : register(b1)
 	float Nspecular;
 };
 
-Texture2D<float4> ambtex : register(t0);
-Texture2D<float4> diftex : register(t1);
-Texture2D<float4> spetex : register(t2);
+Texture2D<float> shadowTex : register(t0);
 
 SamplerState smp: register(s0);
 
@@ -26,4 +26,5 @@ struct Output {
 	float4 vnormal : NORMAL1;
 	float2 uv : TEXCOORD;
 	float3 ray : VECTOR;
+	float4 spos : SPOS;
 };

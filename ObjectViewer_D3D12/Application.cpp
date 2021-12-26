@@ -67,6 +67,9 @@ HRESULT Application::Initialize() {
 		std::cout << "Failed to CreateShaders\n";
 		return E_FAIL;
 	}
+	if (FAILED(DxCon.CreateShadowMapGraphicsPipeLine())) {
+		return ErrorMessage("Failed to Create ShadowMapGraphicsPipeline");
+	}
 	if (FAILED(DxCon.CreateFinalGraphicsPipeLine())) {
 		std::cout << "Failed to CreateFinalGraphicsPipeLine" << std::endl;
 		return E_FAIL;
@@ -100,6 +103,12 @@ void Application::Update() {
 		if (m_lwc->m_parentIdx != -1) DxCon.m_objsOBJ[m_lwc->m_parentIdx]->UpdateTransform(m_ewc->m_edValue);
 		if (m_lwc->m_childIdx != -1) DxCon.m_objsOBJ[m_lwc->m_parentIdx]->m_obj[m_lwc->m_childIdx]->UpdateMaterial(m_ewc->m_edValue);
 		m_ewc->m_editFlag = false;
+	}
+
+	//5. ライト視点からのレンダリング
+	if (FAILED(DxCon.DrawFromLight(light))) {
+		ErrorMessage("Failed to Update");
+		return;
 	}
 
 	//5. カメラ視点からのレンダリング
