@@ -44,8 +44,10 @@ struct MatrixData {
 	XMMATRIX p_perspective;
 	XMMATRIX p_orthographic;
 	XMFLOAT3 eye;
+	float dammy;
+	XMFLOAT3 light_col;
 
-	char padding[180];
+	char padding[164];
 };
 
 class DirectXController {
@@ -83,6 +85,7 @@ public:
 	ID3DBlob* m_srootSig = nullptr; //ルートシグネチャのバイナリデータオブジェクト
 	ID3D12RootSignature* m_srootSignature = nullptr; //ルートシグネチャ
 	DX12Shader m_svertexShader; //バーテックスシェーダ
+	const int m_shadowSolution = 4096;
 
 
 	//通常レンダリング(カメラ視点レンダリング) m_m〇〇
@@ -123,8 +126,9 @@ public:
 	int m_LoadedObjCount = 0; //描画済みモデル数
 
 private:
-	D3D12_VIEWPORT m_vp = {};
-	D3D12_RECT m_sr = {};
+	D3D12_VIEWPORT m_fvp = {};
+	D3D12_VIEWPORT m_svp = {};
+	D3D12_RECT m_fsr = {};
 
 public:
 	HRESULT InitD3D(HWND hwnd);
@@ -140,12 +144,12 @@ public:
 	HRESULT CreateFinalGraphicsPipeLine();
 	HRESULT SetGraphicsPipeLine();
 	HRESULT DrawFromLight(Light& light);
-	HRESULT DrawFromCamera(Camera& camera);
+	HRESULT DrawFromCamera(Camera camera, Light light);
 	HRESULT finalDraw();
 	HRESULT UpdateObjTransform(HWND hwnd[9], int offset, XMFLOAT3& objData);
 	HRESULT UpdateObjTransform(HWND hwnd[9], float value[3], int offset, XMFLOAT3& objData);
 	HRESULT UpdateWorldMatrix(Object& obj, int objIndex);
-	HRESULT UpdateViewMatrix(Camera &camera, int objIndex);
+	HRESULT UpdateViewMatrix(Camera camera, Light light, int objIndex);
 	HRESULT LoadObject(const char* objName);
 	HRESULT DeleteObject(int objIdx);
 	

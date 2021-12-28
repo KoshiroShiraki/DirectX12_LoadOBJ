@@ -10,14 +10,14 @@ public:
 	~EditWindowController();
 
 public :
-	static const int m_editCnt = 20;
+	static const int m_editCnt = 26;
 	HWND m_ehwnd[m_editCnt]; //エディットボックス
-	static const int m_editID = 0; //0~19
+	static const int m_editID = 0; //0~25
 	int m_eb_width;
 	int m_eb_height;
 	int m_eb_offsetX[3];
-	int m_eb_offsetY[8];
-	const char* m_eb_text[8] = {
+	int m_eb_offsetY[10];
+	const char* m_eb_text[10] = {
 		"pos",
 		"rot",
 		"siz",
@@ -26,6 +26,8 @@ public :
 		"spe",
 		"N",
 		"d",
+		"light col",
+		"light dir",
 	};
 	float m_edValue[m_editCnt];
 

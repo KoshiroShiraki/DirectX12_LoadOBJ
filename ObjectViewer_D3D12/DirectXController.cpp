@@ -3,18 +3,27 @@
 
 DirectXController::DirectXController() {
 	//ビューポートの設定
-	m_vp.Width = window_Width;
-	m_vp.Height = window_Height;
-	m_vp.TopLeftX = 0;
-	m_vp.TopLeftY = 0;
-	m_vp.MaxDepth = 1.0f;
-	m_vp.MinDepth = 0.0f;
+	m_fvp.Width = window_Width;
+	m_fvp.Height = window_Height;
+	m_fvp.TopLeftX = 0;
+	m_fvp.TopLeftY = 0;
+	m_fvp.MaxDepth = 1.0f;
+	m_fvp.MinDepth = 0.0f;
+
+	//ビューポートの設定
+	D3D12_VIEWPORT vp;
+	m_svp.Width = m_shadowSolution;
+	m_svp.Height = m_shadowSolution;
+	m_svp.TopLeftX = 0;
+	m_svp.TopLeftY = 0;
+	m_svp.MaxDepth = 1.0f;
+	m_svp.MinDepth = 0.0f;
 
 	//シザー矩形の設定
-	m_sr.top = 0;
-	m_sr.left = 0;
-	m_sr.right = m_sr.left + window_Width;
-	m_sr.bottom = m_sr.top + window_Height;
+	m_fsr.top = 0;
+	m_fsr.left = 0;
+	m_fsr.right = m_fsr.left + m_shadowSolution;
+	m_fsr.bottom = m_fsr.top + m_shadowSolution;
 }
 
 DirectXController::~DirectXController() {
@@ -292,8 +301,8 @@ HRESULT DirectXController::CreateShadowBuffer() {
 	//リソース設定
 	D3D12_RESOURCE_DESC resDesc = {};
 	resDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-	resDesc.Width = window_Width;
-	resDesc.Height = window_Height;
+	resDesc.Width = m_shadowSolution;
+	resDesc.Height = m_shadowSolution;
 	resDesc.DepthOrArraySize = 1;
 	resDesc.Format = DXGI_FORMAT_R32_TYPELESS;
 	resDesc.SampleDesc.Count = 1;
@@ -438,7 +447,7 @@ HRESULT DirectXController::CreateConstBuffers(Camera& camera, Light& light) {
 
 	/*-----constBufferの生成-----*/
 	//ビュー行列(カメラ視点行列)の生成
-	XMFLOAT3 eye(0, 0, -10);
+	XMFLOAT3 eye(0, 0, 0);
 	XMFLOAT3 target(0, 0, eye.z + 1);
 	XMFLOAT3 up(0, 1, 0);
 	camera.InitCamera(eye, target, up);
@@ -446,12 +455,12 @@ HRESULT DirectXController::CreateConstBuffers(Camera& camera, Light& light) {
 	XMMATRIX projectionMatrix = XMMatrixPerspectiveFovLH(XM_PIDIV2, static_cast<float>(window_Width) / static_cast<float>(window_Height), 1.0f, 10000.0f);
 	
 	//ビュー行列(ライト視点)の生成
-	eye = XMFLOAT3(0, 1000, 0);
-	target = XMFLOAT3(0, 0, 5);
+	eye = XMFLOAT3(0, 0, -1000);
+	target = XMFLOAT3(0, 0, 0);
 	up = XMFLOAT3(0, 1, 0);
-	light.InitLight(eye, target, up, XMFLOAT3(0, 0, 0));
+	light.InitLight(eye, target, up, XMFLOAT3(0.0, 0.0, 0.0));
 	//平衡投影行列の生成
-	XMMATRIX shadowProjectionMatrix = XMMatrixOrthographicLH(1000, 1000, 1.0f, 10000.0f);
+	XMMATRIX shadowProjectionMatrix = XMMatrixOrthographicLH(500, 500, 1.0f, 1000.0f);
 
 	//リソース設定
 	D3D12_RESOURCE_DESC resDesc = {};
@@ -501,14 +510,16 @@ HRESULT DirectXController::CreateConstBuffers(Camera& camera, Light& light) {
 		std::cout << "Failed to Map constBuffer\n";
 		return hr;
 	}
-	(m_mmapMatrix)->v_light = light.m_LightViewMatrix;
+	(m_mmapMatrix)->v_light = light.m_viewMatrix;
 	(m_mmapMatrix)->v_camera = camera.viewMatrix;
 	(m_mmapMatrix)->p_perspective = projectionMatrix;
 	(m_mmapMatrix)->p_orthographic = shadowProjectionMatrix;
 	(m_mmapMatrix)->eye = eye;
+	std::cout << light.m_color.x << std::endl;
+	(m_mmapMatrix)->light_col = light.m_color;
 
 	hr = m_sconstBuffer->Map(0, nullptr, (void**)&m_smapMatrix);
-	(m_smapMatrix)->v_light = light.m_LightViewMatrix;
+	(m_smapMatrix)->v_light = light.m_viewMatrix;
 	(m_smapMatrix)->p = shadowProjectionMatrix;
 
 	/*-----constBufferViewの生成-----*/
@@ -628,7 +639,7 @@ HRESULT DirectXController::CreateShadowMapGraphicsPipeLine() {
 	gPipeLine.PS.BytecodeLength = 0;// m_mpixelShader.GetBufferSize();
 	//SampleStateとRasterizerStateの設定
 	gPipeLine.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
-	gPipeLine.RasterizerState.MultisampleEnable = false;
+	gPipeLine.RasterizerState.MultisampleEnable = true;
 	gPipeLine.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 	gPipeLine.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
 	gPipeLine.RasterizerState.DepthClipEnable = true;
@@ -897,7 +908,6 @@ HRESULT DirectXController::SetGraphicsPipeLine() {
 
 HRESULT DirectXController::DrawFromLight(Light& light) {
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvH = m_sdsvHeap->GetCPUDescriptorHandleForHeapStart();
-	std::cout << dsvH.ptr << std::endl;
 	
 	//リソースバリアの更新(シェーダリソースからレンダーターゲット)
 	m_cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(m_shadowBuffer, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE));
@@ -915,11 +925,14 @@ HRESULT DirectXController::DrawFromLight(Light& light) {
 		m_cmdList->OMSetRenderTargets(0, nullptr, false, &dsvH);
 
 		//ビューポートとシザー矩形をセット
-		m_cmdList->RSSetViewports(1, &m_vp);
-		m_cmdList->RSSetScissorRects(1, &m_sr);
+		m_cmdList->RSSetViewports(1, &m_svp);
+		//m_cmdList->RSSetScissorRects(1, &m_fsr);
 
 		//プリミティブトポロジをセット
 		m_cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+		//ライト行列の更新
+		m_smapMatrix->v_light = light.m_viewMatrix;
 
 		//オブジェクトを描画
 		(m_smapMatrix)->w = m_objsOBJ[i]->m_wMatrix;
@@ -955,7 +968,7 @@ HRESULT DirectXController::DrawFromLight(Light& light) {
 	return S_OK;
 }
 
-HRESULT DirectXController::DrawFromCamera(Camera& camera) {
+HRESULT DirectXController::DrawFromCamera(Camera camera, Light light) {
 	//CPUディスクリプターヒープスタート位置の取得
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvH = m_mrtvHeap->GetCPUDescriptorHandleForHeapStart();
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvH = m_mdsvHeap->GetCPUDescriptorHandleForHeapStart();
@@ -969,7 +982,13 @@ HRESULT DirectXController::DrawFromCamera(Camera& camera) {
 
 	//深度/ステンシルバッファのクリア
 	m_cmdList->ClearDepthStencilView(dsvH, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-	UpdateViewMatrix(camera, 0);
+	
+	//ビュー行列の更新
+	UpdateViewMatrix(camera, light, 0);
+	//ライトの更新
+	m_mmapMatrix->light_col = light.m_color;
+	m_mmapMatrix->v_light = light.m_viewMatrix;
+
 	//ここから、オブジェクトの数だけループ
 	for (int i = 0; i < m_objsOBJ.size(); i++) {
 		//パイプラインとルートシグネチャをセット
@@ -980,8 +999,8 @@ HRESULT DirectXController::DrawFromCamera(Camera& camera) {
 		m_cmdList->OMSetRenderTargets(1, &rtvH, false, &dsvH);
 
 		//ビューポートとシザー矩形をセット
-		m_cmdList->RSSetViewports(1, &m_vp);
-		m_cmdList->RSSetScissorRects(1, &m_sr);
+		m_cmdList->RSSetViewports(1, &m_fvp);
+		m_cmdList->RSSetScissorRects(1, &m_fsr);
 
 		//シャドウテクスチャをセット
 		D3D12_GPU_DESCRIPTOR_HANDLE handle = m_ssrvHeap->GetGPUDescriptorHandleForHeapStart();
@@ -1050,8 +1069,8 @@ HRESULT DirectXController::finalDraw() {
 	m_cmdList->OMSetRenderTargets(1, &rtvH, false, &dsvH);
 
 	//ビューポートとシザー矩形の設定
-	m_cmdList->RSSetViewports(1, &m_vp);
-	m_cmdList->RSSetScissorRects(1, &m_sr);
+	m_cmdList->RSSetViewports(1, &m_fvp);
+	m_cmdList->RSSetScissorRects(1, &m_fsr);
 
 	//ディスクリプタヒープとディスクリプタを設定
 	D3D12_GPU_DESCRIPTOR_HANDLE handle = m_msrvHeap->GetGPUDescriptorHandleForHeapStart();
@@ -1162,9 +1181,13 @@ HRESULT DirectXController::UpdateWorldMatrix(Object& obj, int objIndex) {
 	return S_OK;
 }
 
-HRESULT DirectXController::UpdateViewMatrix(Camera& camera, int objIndex) {
+HRESULT DirectXController::UpdateViewMatrix(Camera camera, Light light, int objIndex) {
+	//カメラ
 	m_mmapMatrix->v_camera = camera.viewMatrix; //set Camera's viewMatrix to mapMatrix
 	m_mmapMatrix->eye = camera.pos;
+	//ライト
+	/*m_mmapMatrix->v_light = light.m_viewMatrix;
+	m_smapMatrix->v_light = light.m_viewMatrix;*/
 	return S_OK;
 }
 

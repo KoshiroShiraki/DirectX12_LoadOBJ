@@ -15,6 +15,8 @@ public:
 	XMFLOAT3 target; //Camera Look at
 	XMFLOAT3 up; //Camera up vector
 
+	XMVECTOR m_curPos;
+
 	float verticalDir;
 	float moveSpeed;
 	float cameraSensitivity;

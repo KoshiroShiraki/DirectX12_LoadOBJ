@@ -6,6 +6,7 @@ cbuffer cbuff0 : register(b0)
 	matrix p_perspective;
 	matrix p_orthographic;
 	float3 eye;
+	float3 light_col;
 };
 
 cbuffer Material : register(b1)

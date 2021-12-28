@@ -75,7 +75,6 @@ HRESULT DX12Object3D::CreateVertexBuffer(ID3D12Device* device) {
 	m_vbv.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
 	m_vbv.SizeInBytes = m_vertexBuffer->GetDesc().Width;
 	m_vbv.StrideInBytes = sizeof(DX12Vertex);
-	std::cout << "VBVÝ’è‚µ‚½‚æI" << std::endl;
 	return S_OK;
 }
 

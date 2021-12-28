@@ -4,7 +4,7 @@ EditWindowController::EditWindowController(HINSTANCE hInstance, int window_width
 	for (int i = 0; i < m_editCnt - 1; i++) {
 		m_edValue[i] = 0;
 	}
-	m_edValue[m_editCnt - 1] = 1;
+	m_edValue[m_editCnt - 7] = 1;
 }
 
 EditWindowController::~EditWindowController() {
@@ -17,9 +17,9 @@ HRESULT EditWindowController::CreateChildWindow() {
 	m_eb_height = 25;
 	//エディットボックス位置
 	for (int i = 0; i < 3; i++) {
-		m_eb_offsetX[i] = 50 + (m_eb_width + 10) * i;
+		m_eb_offsetX[i] = 90 + (m_eb_width + 10) * i;
 	}
-	for (int i = 0; i < 8; i++) {
+	for (int i = 0; i < 10; i++) {
 		m_eb_offsetY[i] = (m_eb_height + 5) * i;
 	}
 
@@ -31,11 +31,21 @@ HRESULT EditWindowController::CreateChildWindow() {
 			}
 		}
 	}
+	//NとDはエディットボックスが一つ
 	for (int i = 0; i < 2; i++) {
 		if (FAILED(CreateEditBox(m_ehwnd[i + 18], nullptr, m_eb_offsetX[0], m_eb_offsetY[6 + i], m_eb_width, m_eb_height, m_editID + i + 18))) {
 			return ErrorMessage("Failed to Create ChildWindow");
 		}
 	}
+	//ライトのカラーと向き
+	for (int i = 0; i < 2; i++) {
+		for (int j = 0; j < 3; j++) {
+			if (FAILED(CreateEditBox(m_ehwnd[20 + i * 3 + j], nullptr, m_eb_offsetX[j], m_eb_offsetY[8 + i], m_eb_width, m_eb_height, m_editID + 20 + i * 3 + j))) {
+				return ErrorMessage("Failed to Create ChildWindow");
+			}
+		}
+	}
+
 	//エディットボックスに数値を表示
 	for (int i = 0; i < m_editCnt; i++) {
 		SetWindowText(m_ehwnd[i], std::to_string(m_edValue[i]).c_str());
@@ -94,18 +104,18 @@ LRESULT EditWindowController::WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LP
 	case WM_PAINT :
 
 		hdc = BeginPaint(hwnd,&ps);
-		for (int i = 0; i < 8; i++) {
+		for (int i = 0; i < 10; i++) {
 			TextOut(hdc, 5, m_eb_offsetY[i], m_eb_text[i], strlen(m_eb_text[i]));
 		}
 		EndPaint(hwnd, &ps);
 		
 		return 0;
 	case WM_MOUSEWHEEL : //マウスホイール
-		if (m_curID != -1 && m_curID != m_editCnt - 1) {
+		if (m_curID != -1 && m_curID != m_editCnt - 7) {
 			m_editFlag = true;
 			//マウスホイールの回転方向
 			signed short wheelDir = (signed short)HIWORD(wParam) / 120;
-			m_edValue[m_curID] += m_edValue[m_editCnt - 1] * wheelDir;
+			m_edValue[m_curID] += m_edValue[m_editCnt - 7] * wheelDir;
 			//文字列に戻してエディットボックスにセット
 			SetWindowText(m_ehwnd[m_curID], std::to_string(m_edValue[m_curID]).c_str());
 		}
@@ -113,7 +123,6 @@ LRESULT EditWindowController::WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LP
 	case WM_COMMAND :
 		switch (HIWORD(wParam)) {
 		case EN_CHANGE : //エディットボックスの中身が変更され、かつどこかしらのエディットボックスにフォーカスが得られているとき
-			std::cout << "unko" << std::endl;
 			if (m_curID != -1 && m_isFocusEb) {
 				m_editFlag = true;
 				//文字列として取得し、数字にしてメンバ変数に代入

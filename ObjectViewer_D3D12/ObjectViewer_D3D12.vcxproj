@@ -28,6 +28,7 @@
     <ClInclude Include="DX12ObjectFormatOBJ.h" />
     <ClInclude Include="DX12Shader.h" />
     <ClInclude Include="EditWindowController.h" />
+    <ClInclude Include="EnvironmentEditorWindowController.h" />
     <ClInclude Include="Light.h" />
     <ClInclude Include="ListWindowController.h" />
     <ClInclude Include="MainWindowController.h" />

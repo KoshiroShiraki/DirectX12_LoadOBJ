@@ -42,7 +42,7 @@ HRESULT Application::Initialize() {
 	m_lwc->InitWindow("List", "List");
 	m_lwc->InitChildWindow();
 	//エディタウィンドウ
-	m_ewc = new EditWindowController(hInst, 500, 300);
+	m_ewc = new EditWindowController(hInst, 500, 350);
 	m_ewc->InitWindow("Editor", "Editor");
 	
 	/*-----ウィンドウの表示-----*/
@@ -102,6 +102,8 @@ void Application::Update() {
 	if (m_ewc->m_editFlag) {
 		if (m_lwc->m_parentIdx != -1) DxCon.m_objsOBJ[m_lwc->m_parentIdx]->UpdateTransform(m_ewc->m_edValue);
 		if (m_lwc->m_childIdx != -1) DxCon.m_objsOBJ[m_lwc->m_parentIdx]->m_obj[m_lwc->m_childIdx]->UpdateMaterial(m_ewc->m_edValue);
+		light.updateColor(m_ewc->m_edValue);
+		light.update(m_ewc->m_edValue);
 		m_ewc->m_editFlag = false;
 	}
 
@@ -112,7 +114,7 @@ void Application::Update() {
 	}
 
 	//5. カメラ視点からのレンダリング
-	if (FAILED(DxCon.DrawFromCamera(camera))) {
+	if (FAILED(DxCon.DrawFromCamera(camera,light))) {
 		ErrorMessage("Failed to Update");
 		return;
 	}
@@ -193,6 +195,5 @@ void Application::UpdateChildListBox() {
 }
 
 void Application::Terminate() {
-	/*-----Rerlease DirectX Interface-----*/
 	DxCon.Release();
 }
