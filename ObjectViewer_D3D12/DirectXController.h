@@ -44,10 +44,11 @@ struct MatrixData {
 	XMMATRIX p_perspective;
 	XMMATRIX p_orthographic;
 	XMFLOAT3 eye;
-	float dammy;
+	float dammy1;
 	XMFLOAT3 light_col;
-
-	char padding[164];
+	float dammy2;
+	XMFLOAT3 light_pos;
+	char dammy3[148];
 };
 
 class DirectXController {

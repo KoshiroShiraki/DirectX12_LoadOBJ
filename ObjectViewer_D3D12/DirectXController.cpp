@@ -510,13 +510,13 @@ HRESULT DirectXController::CreateConstBuffers(Camera& camera, Light& light) {
 		std::cout << "Failed to Map constBuffer\n";
 		return hr;
 	}
-	(m_mmapMatrix)->v_light = light.m_viewMatrix;
-	(m_mmapMatrix)->v_camera = camera.viewMatrix;
-	(m_mmapMatrix)->p_perspective = projectionMatrix;
-	(m_mmapMatrix)->p_orthographic = shadowProjectionMatrix;
-	(m_mmapMatrix)->eye = eye;
-	std::cout << light.m_color.x << std::endl;
-	(m_mmapMatrix)->light_col = light.m_color;
+	m_mmapMatrix->v_light = light.m_viewMatrix;
+	m_mmapMatrix->v_camera = camera.viewMatrix;
+	m_mmapMatrix->p_perspective = projectionMatrix;
+	m_mmapMatrix->p_orthographic = shadowProjectionMatrix;
+	m_mmapMatrix->eye = eye;
+	m_mmapMatrix->light_col = light.m_color;
+	m_mmapMatrix->light_pos = light.m_pos;
 
 	hr = m_sconstBuffer->Map(0, nullptr, (void**)&m_smapMatrix);
 	(m_smapMatrix)->v_light = light.m_viewMatrix;
@@ -986,8 +986,9 @@ HRESULT DirectXController::DrawFromCamera(Camera camera, Light light) {
 	//ビュー行列の更新
 	UpdateViewMatrix(camera, light, 0);
 	//ライトの更新
-	m_mmapMatrix->light_col = light.m_color;
 	m_mmapMatrix->v_light = light.m_viewMatrix;
+	m_mmapMatrix->light_pos = light.m_pos;
+	m_mmapMatrix->light_col = light.m_color;
 
 	//ここから、オブジェクトの数だけループ
 	for (int i = 0; i < m_objsOBJ.size(); i++) {

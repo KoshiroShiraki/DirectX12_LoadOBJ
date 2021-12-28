@@ -26,32 +26,19 @@ public:
 	ListWindowController* m_lwc = nullptr; //リストウィンドウ(3Dモデルを管理)
 	EditWindowController* m_ewc = nullptr; //エディットウィンドウ(描画パラメータの管理)
 
-	HINSTANCE hInst;	//InstanceHandle
-	HWND ehwnd;	//EditWindow Handle
-	HWND hEdit;	//ComboBox Handle use for Select Object which you want to Load
-	HWND hEditTr[9];	//EditBox Handle use for Change Object's transform
-	HWND hButton;	//LoadButton Handle use for start Load new Object
-	HWND hDrop;	//ComboBox Handle use for Select Object which is exist in virtual World
-	HWND hSlider[9]; //Slider Handle use for Change Object's transform
-	SCROLLINFO scrInfo[9];
+	HINSTANCE hInst; //アプリケーションインスタンスハンドル
 
-	bool isLoadObject;	//Check this Application is Loading new Object
-	std::string LoadObjPath;	//ObjectPath 
+	std::vector<std::string> DefaultObjFilePaths; //読み込み可能3Dモデルファイル
 
-	bool isDeleteObject = false;
-
-	std::vector<std::string> DefaultObjFilePaths;	//Loadable Objects List.
-
-	int objIndex = -1;	//Index of Objects List. this will use for reference which Object's parameter should be changed.
+	int objIndex = -1;
 
 public:
-	void DeleteObject();
-	void UpdateListBox();
-	void UpdateEditBox();
-	void UpdateParentListBox();
-	void UpdateChildListBox();
+	void UpdateListBox(); //モデルをロードし、リストぼっくしに新規に追加したり削除したりする
+	void UpdateEditBox(); //選択されているモデルの持つパラメータをエディットボックスに反映させる。
+	void UpdateParentListBox(); //リストボックスの中身を最新の状態に書き換える(親)
+	void UpdateChildListBox(); //リストボックスの中身を最新の状態に書き換える(子)
 
-	HRESULT Initialize();	//mwcx = WindowRegisterClass for MainWindow, ewcx = WindowRegisterClass for EditWindow
-	void Update();
-	void Terminate();
+	HRESULT Initialize();
+	HRESULT Update();
+	HRESULT Terminate();
 };

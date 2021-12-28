@@ -2,7 +2,6 @@
 #include"Application.h"
 
 Application::Application() {
-	isLoadObject = false;
 }
 
 Application::~Application() {
@@ -12,7 +11,7 @@ Application::~Application() {
 HRESULT Application::Initialize() {
 	HRESULT hr;
 
-	/*-----ロード可能なモデルファイルの列挙-----*/
+	//ロード可能なモデルファイルを見つけておく
 	PathController pc;
 	char objsPath[MAX_PATH_LENGTH];
 
@@ -33,24 +32,23 @@ HRESULT Application::Initialize() {
 		}
 	}
 
-	/*-----ウィンドウの生成-----*/
-	//メインウィンドウ
+	//メインウィンドウの生成
 	m_mwc = new MainWindowController(hInst, window_Width, window_Height);
 	m_mwc->InitWindow("Main", "Main");
-	//リストウィンドウ
+	//リストウィンドウの生成
 	m_lwc = new ListWindowController(hInst, 500, 1000);
 	m_lwc->InitWindow("List", "List");
 	m_lwc->InitChildWindow();
-	//エディタウィンドウ
+	//エディタウィンドウの生成
 	m_ewc = new EditWindowController(hInst, 500, 350);
 	m_ewc->InitWindow("Editor", "Editor");
 	
-	/*-----ウィンドウの表示-----*/
+	//ウィンドウを表示する
 	ShowWindow(m_mwc->m_hwnd, SW_SHOW);
 	ShowWindow(m_lwc->m_hwnd, SW_SHOW);
 	ShowWindow(m_ewc->m_hwnd, SW_SHOW);
 	
-	/*-----DirectX12の初期化-----*/
+	//DirectXインタフェースの初期化
 	if (FAILED(DxCon.InitD3D(m_mwc->m_hwnd))) {
 		std::cout << "Failed to InitD3D\n";
 		return E_FAIL;
@@ -81,11 +79,7 @@ HRESULT Application::Initialize() {
 
 }
 
-void Application::DeleteObject() {
-	DxCon.m_objsOBJ.erase(DxCon.m_objsOBJ.begin());
-}
-
-void Application::Update() {
+HRESULT Application::Update() {
 	//1. 入力情報の更新
 	input.update();
 
@@ -107,27 +101,24 @@ void Application::Update() {
 		m_ewc->m_editFlag = false;
 	}
 
-	//5. ライト視点からのレンダリング
+	//5. ライト視点からのレンダリング(シャドウマップ用)
 	if (FAILED(DxCon.DrawFromLight(light))) {
-		ErrorMessage("Failed to Update");
-		return;
+		return ErrorMessage("Failed to Update");
 	}
 
-	//5. カメラ視点からのレンダリング
+	//5. カメラ視点からのレンダリング(マルチパス用<-今回はやってない)
 	if (FAILED(DxCon.DrawFromCamera(camera,light))) {
-		ErrorMessage("Failed to Update");
-		return;
+		return ErrorMessage("Failed to Update");
 	}
 
 	//6. 最終的なレンダリング結果をバックバッファにレンダリングし、ウィンドウへ表示する
 	if (FAILED(DxCon.finalDraw())) {
-		ErrorMessage("Failed to Update");
-		return;
+		return ErrorMessage("Failed to Update");
 	}
 }
 
 void Application::UpdateListBox() {
-	//フラグをチェックし新しいモデルの読み込みか削除をする
+	//モデルのロード
 	if (m_lwc->m_isLoad) {
 		if (m_lwc->m_loadIdx != -1) {
 			if (FAILED(DxCon.LoadObject(m_lwc->m_loadableFileList[m_lwc->m_loadIdx].c_str()))) {
@@ -141,16 +132,22 @@ void Application::UpdateListBox() {
 		}
 		m_lwc->m_isLoad = false;
 	}
+
+	//モデルの削除
 	if (m_lwc->m_isDelete) {
 		if (m_lwc->m_parentIdx != -1) {
 			DxCon.DeleteObject(m_lwc->m_parentIdx);
+			//削除したら、親/子インデックスを-1(何も選択していない状態)にする
 			m_lwc->m_parentIdx = -1;
+			m_lwc->m_childIdx = -1;
+
 			//リストボックスの更新
 			UpdateParentListBox();
 		}
 		m_lwc->m_isDelete = false;
 	}
-	//選ばれている親オブジェクトをもとに子オブジェクトも列挙する
+
+	//子モデルの列挙(新しく別のモデルが選択された場合のみ)
 	static int pIdx = -1;
 	if (m_lwc->m_parentIdx != pIdx) {
 		UpdateChildListBox();
@@ -194,6 +191,8 @@ void Application::UpdateChildListBox() {
 	}
 }
 
-void Application::Terminate() {
+HRESULT Application::Terminate() {
 	DxCon.Release();
+
+	return S_OK;
 }

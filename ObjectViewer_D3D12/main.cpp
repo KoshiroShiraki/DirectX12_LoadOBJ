@@ -27,7 +27,10 @@ int main() {
 			break;
 		}
 		/*-----アプリケーションの更新-----*/
-		app.Update();
+		if (FAILED(app.Update())) {
+			ErrorMessage("Failed to Update Application");
+			break;
+		}
 	}
 
 	/*-----アプリケーションの終了-----*/

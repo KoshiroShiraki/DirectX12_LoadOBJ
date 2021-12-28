@@ -2,7 +2,7 @@
 
 float4 main(Output input) : SV_TARGET
 {
-	float3 light = normalize(float3(1,-1,1));
+	float3 light = normalize(-light_pos);
 
 	float3 refLight = normalize(reflect(light, input.normal.xyz));
 	float speVal = pow((dot(refLight, -input.ray)), Nspecular);
