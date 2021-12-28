@@ -455,7 +455,7 @@ HRESULT DirectXController::CreateConstBuffers(Camera& camera, Light& light) {
 	XMMATRIX projectionMatrix = XMMatrixPerspectiveFovLH(XM_PIDIV2, static_cast<float>(window_Width) / static_cast<float>(window_Height), 1.0f, 10000.0f);
 	
 	//ビュー行列(ライト視点)の生成
-	eye = XMFLOAT3(0, 0, -1000);
+	eye = XMFLOAT3(0, 0.01f, 0);
 	target = XMFLOAT3(0, 0, 0);
 	up = XMFLOAT3(0, 1, 0);
 	light.InitLight(eye, target, up, XMFLOAT3(0.0, 0.0, 0.0));

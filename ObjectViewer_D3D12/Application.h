@@ -17,14 +17,14 @@ public:
 	~Application();
 
 public:
-	DirectXController DxCon;	//to Controll DirectX
-	Input input;	//to Controll Input
-	Camera camera;	//to Controll Camera
-	Light light;
+	DirectXController DxCon; //描画用(DirectX12)
+	Input input; //入力用
+	Camera camera; //カメラ
+	Light light; //ライト
 
-	MainWindowController* m_mwc = nullptr;
-	ListWindowController* m_lwc = nullptr;
-	EditWindowController* m_ewc = nullptr;
+	MainWindowController* m_mwc = nullptr; //メインウィンドウ(描画結果を表示)
+	ListWindowController* m_lwc = nullptr; //リストウィンドウ(3Dモデルを管理)
+	EditWindowController* m_ewc = nullptr; //エディットウィンドウ(描画パラメータの管理)
 
 	HINSTANCE hInst;	//InstanceHandle
 	HWND ehwnd;	//EditWindow Handle

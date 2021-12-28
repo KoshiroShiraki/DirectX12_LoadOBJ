@@ -11,7 +11,7 @@ int pSliderPos = 0;
 int main() {
 	HRESULT hr;
 
-	app.hInst = GetModuleHandle(0); //アプリケーションインスタンスハンドルの取得
+	app.hInst = GetModuleHandle(0); //アプリケーションインスタンスハンドルの取得(コンソール画面を出したいのでWinMainは使わない)
 
 	/*-----アプリケーションの初期化-----*/
 	app.Initialize();
@@ -26,12 +26,11 @@ int main() {
 		if (msg.message == WM_QUIT) {
 			break;
 		}
-		/*-----Update Application-----*/
-		//std::cout << "UNKO2" << std::endl;
+		/*-----アプリケーションの更新-----*/
 		app.Update();
 	}
 
-	/*-----Terminate Application-----*/
+	/*-----アプリケーションの終了-----*/
 	app.Terminate();
 
 	return 0;
