@@ -115,9 +115,6 @@ public:
 	ID3D12Resource* m_frenderPolygon = nullptr; //バーテックスバッファ(m_mrederBuffersの出力結果を張り付けるポリゴン用)
 	D3D12_VERTEX_BUFFER_VIEW m_frenderVbv; //バーテックスバッファビュー
 
-	ID3D12Resource* m_floorPolygon = nullptr;
-	D3D12_VERTEX_BUFFER_VIEW m_floorPolygonVbv;
-
 	ID3D12Fence* m_fence = nullptr;
 
 	ID3DBlob* m_errorBlob = nullptr;
@@ -143,14 +140,10 @@ public:
 	HRESULT CreateShaders();
 	HRESULT CreateShadowMapGraphicsPipeLine();
 	HRESULT CreateFinalGraphicsPipeLine();
-	HRESULT SetGraphicsPipeLine();
+	HRESULT CreateGraphicsPipeLine();
 	HRESULT DrawFromLight(Light& light);
 	HRESULT DrawFromCamera(Camera camera, Light light);
 	HRESULT finalDraw();
-	HRESULT UpdateObjTransform(HWND hwnd[9], int offset, XMFLOAT3& objData);
-	HRESULT UpdateObjTransform(HWND hwnd[9], float value[3], int offset, XMFLOAT3& objData);
-	HRESULT UpdateWorldMatrix(Object& obj, int objIndex);
-	HRESULT UpdateViewMatrix(Camera camera, Light light, int objIndex);
 	HRESULT LoadObject(const char* objName);
 	HRESULT DeleteObject(int objIdx);
 	

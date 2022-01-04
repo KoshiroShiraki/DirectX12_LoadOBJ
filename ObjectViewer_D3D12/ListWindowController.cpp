@@ -18,7 +18,7 @@ HRESULT ListWindowController::CreateChildWindow() {
 	{
 		"new",
 		"delete",
-		"edit",
+		"quit",
 	};
 	//ボタン位置
 	int btn_offsetX = 0;
@@ -45,7 +45,7 @@ HRESULT ListWindowController::CreateChildWindow() {
 	if (FAILED(CreateButton(m_bhwnd[1], btn_name[1], btn_offsetX, btn_offsetY[1], btn_width, btn_height, m_deletebtnID))) {
 		return ErrorMessage("Failed to Create ChildWindow");
 	}
-	if (FAILED(CreateButton(m_bhwnd[2], btn_name[2], btn_offsetX, btn_offsetY[2], btn_width, btn_height, m_editbtnID))) {
+	if (FAILED(CreateButton(m_bhwnd[2], btn_name[2], btn_offsetX, btn_offsetY[2], btn_width, btn_height, m_quitbtnID))) {
 		return ErrorMessage("Failed to Create ChildWindow");
 	}
 	if (FAILED(CreateDropDownComboBox(m_chwnd, "ComboBox", cb_offsetX, cb_offsetY, cb_width, cb_height,m_cbID))) {
@@ -107,6 +107,9 @@ LRESULT ListWindowController::WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LP
 			if (!m_isDelete) {
 				m_isDelete = true;
 			}
+			return 0;
+		case m_quitbtnID : //"qui"ボタンの時
+			PostQuitMessage(0);
 			return 0;
 		case m_cbID : //"ComboBox"の時
 			switch (HIWORD(wParam)) { //メッセージ内容を調べる

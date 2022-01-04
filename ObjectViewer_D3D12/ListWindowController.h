@@ -14,7 +14,7 @@ public:
 	const char* m_btnName[m_btnCnt] = {
 		"new",
 		"delete",
-		"edit",
+		"quit",
 	};
 	int m_btn_offsetX;
 	int m_btn_offsetY[m_btnCnt];
@@ -25,7 +25,7 @@ public:
 	//ウィンドウID
 	static const int m_newbtnID = 0;
 	static const int m_deletebtnID = 1;
-	static const int m_editbtnID = 2;
+	static const int m_quitbtnID = 2;
 	static const int m_cbID = 4;
 	static const int m_lbParentID = 5;
 	static const int m_lbChildID = 6;

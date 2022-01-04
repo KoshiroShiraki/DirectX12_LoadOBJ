@@ -50,31 +50,25 @@ HRESULT Application::Initialize() {
 	
 	//DirectXインタフェースの初期化
 	if (FAILED(DxCon.InitD3D(m_mwc->m_hwnd))) {
-		std::cout << "Failed to InitD3D\n";
-		return E_FAIL;
+		return ErrorMessage("Failed to Init3D");
 	}
 	if (FAILED(DxCon.CreateRenderResources())) {
-		std::cout << "Failed to CreateRenderBuffers" << std::endl;
-		return E_FAIL;
+		return ErrorMessage("Failed to CreateRenderResources");
 	}
 	if (FAILED(DxCon.CreateConstBuffers(camera, light))) {
-		std::cout << "Failed to CreateConstBuffers\n";
-		return E_FAIL;
+		return ErrorMessage("Failed to CreateConstBuffers");
 	}
 	if (FAILED(DxCon.CreateShaders())) {
-		std::cout << "Failed to CreateShaders\n";
-		return E_FAIL;
+		return ErrorMessage("Failed to CreateShaders");
 	}
 	if (FAILED(DxCon.CreateShadowMapGraphicsPipeLine())) {
-		return ErrorMessage("Failed to Create ShadowMapGraphicsPipeline");
+		return ErrorMessage("Failed to CreateShadowMapGraphicsPipeline");
 	}
 	if (FAILED(DxCon.CreateFinalGraphicsPipeLine())) {
-		std::cout << "Failed to CreateFinalGraphicsPipeLine" << std::endl;
-		return E_FAIL;
+		return ErrorMessage("Failed to CreateFinalGraphicsPipeLine");
 	}
-	if (FAILED(DxCon.SetGraphicsPipeLine())) {
-		std::cout << "Failed to SetGraphicsPipeLine\n";
-		return E_FAIL;
+	if (FAILED(DxCon.CreateGraphicsPipeLine())) {
+		return ErrorMessage("Failed to Create GraphicsPipeline");
 	}
 
 }

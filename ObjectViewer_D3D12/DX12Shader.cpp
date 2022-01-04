@@ -12,10 +12,13 @@ DX12Shader::~DX12Shader() {
 HRESULT DX12Shader::CreateShader(std::wstring filename, std::string entryPoint, std::string shaderType, ID3DBlob* errorBlob) {
 	HRESULT hr;
 
-	hr = D3DCompileFromFile(filename.c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, entryPoint.c_str(), shaderType.c_str(), D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, 0, &m_buffer, &errorBlob);
+	std::wstring ex_hlsl = L".hlsl";
+	std::wstring ex_cso = L".cso";
+
+	hr = D3DCompileFromFile((filename + ex_hlsl).c_str(), nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, entryPoint.c_str(), shaderType.c_str(), D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION, 0, &m_buffer, &errorBlob);
 	if (FAILED(hr)) {
 		if (hr == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND)) {
-			hr = D3DReadFileToBlob(L"finalRenderVertexShader.cso", &m_buffer);
+			hr = D3DReadFileToBlob((filename + ex_cso).c_str(), &m_buffer);
 			if (FAILED(hr)) {
 				std::cout << "Error : There is no " << filename.c_str() << std::endl;
 				return hr;

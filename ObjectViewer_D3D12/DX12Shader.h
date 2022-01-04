@@ -4,6 +4,7 @@
 #include<d3dx12.h>
 #include<d3dcompiler.h>
 #include<iostream>
+#include"ErrorDebug.h"
 
 class DX12Shader {
 public :
