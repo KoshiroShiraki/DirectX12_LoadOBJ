@@ -1,17 +1,17 @@
 ☆ObjectViewer
 
 〇実行手順
-・"\ObjectViewer\Debug\ObjectViewer_D3D12.exe"実行ファイルより実行してください。
-・"\ObjectViewer\ObjectViewer_D3D12"フォルダ内にソースコードがあります(".h", ".cpp", ".hlsl", ".hlsli")。
-・なお、同フォルダ内の"DirectXTex-master"以下のものは、DirectX12にてテクスチャを簡単に扱うために外部から導入したものになりますので、私が制作したソースコードではありません。
-・"\ObjectViewer\ObjectViewer_D3D12\Model\OBJ"フォルダ内には実際にアプリケーションで読み込むための3Dモデルファイル(.obj)があります。同フォルダ内にwavefront社のOBJフォーマットで記述されているファイルを置けば、アプリケーションで読み込み可能となります。
+"\ObjectViewer\Debug\ObjectViewer_D3D12.exe"実行ファイルより実行してください。
+"\ObjectViewer\ObjectViewer_D3D12"フォルダ内にソースコードがあります(".h", ".cpp", ".hlsl", ".hlsli")。
+なお、同フォルダ内の"DirectXTex-master"以下のものは、DirectX12にてテクスチャを簡単に扱うために外部から導入したものになりますので、私が制作したソースコードではありません。
+"\ObjectViewer\ObjectViewer_D3D12\Model\OBJ"フォルダ内には実際にアプリケーションで読み込むための3Dモデルファイル(.obj)があります。同フォルダ内にwavefront社のOBJフォーマットで記述されているファイルを置けば、アプリケーションで読み込み可能となります。
 なお、初期状態で用意しているモデルは"Floor.obj"を除いて、https://free3d.com/ja/3d-models/obj より無料でダウンロード可能なものを使用しています。
 
 〇操作方法
-・フォルダ内の"操作説明.pdf"をご参照ください
+フォルダ内の"操作説明.pdf"をご参照ください
 
 〇動作動画
-・
+
 
 
 
