@@ -6,6 +6,7 @@
 #include<Windows.h>
 #include<iostream>
 #include"ErrorDebug.h"
+#include"DX12ModelData_generated.h"
 
 using namespace DirectX;
 

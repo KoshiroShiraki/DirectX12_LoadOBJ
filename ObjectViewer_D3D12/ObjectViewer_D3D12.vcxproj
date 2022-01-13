@@ -174,7 +174,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>D:\Visual Studio Projects\HouseSimulator\HouseSimulator;D:\Visual Studio Projects\ObjectViewer\ObjectViewer_D3D12\DirectXTex-master\DirectXTex</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\Visual Studio Projects\ObjectViewer\ObjectViewer_D3D12\DirectXTex-master\DirectXTex;D:\Visual Studio Projects\FlatBuffers\flatbuffers-master\include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -190,6 +190,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>D:\Visual Studio Projects\ObjectViewer\ObjectViewer_D3D12\DirectXTex-master\DirectXTex;D:\Visual Studio Projects\FlatBuffers\flatbuffers-master\include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
