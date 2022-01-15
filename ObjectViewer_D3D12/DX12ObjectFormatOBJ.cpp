@@ -31,133 +31,222 @@ HRESULT DX12ObjectFormatOBJ::LoadVertexFromOBJFile(std::string filePath, ID3D12D
 	PathController pc;
 	char meshPath[MAX_PATH_LENGTH];
 	pc.CreatePath(filePath.c_str(), meshPath);
+	char fmdPath[MAX_PATH_LENGTH];
 
-	//メッシュファイルを開く
-	FILE* modelFp;
-	if (fopen_s(&modelFp, meshPath, "r") != 0) {
-		return ErrorMessage("Failed to Open MeshFile : " + filePath);
-	}
+	//fmd(flatbuffers model data)ファイルの絶対パス
+	pc.ReplaceExtension(meshPath, fmdPath, "fmd");
 
-	//頂点データ一時保管用配列
-	std::vector<XMFLOAT3> v;
-	std::vector<XMFLOAT2> vt;
-	std::vector<XMFLOAT3> vn;
-	std::vector<std::vector<int*>> fd;
-	std::vector<unsigned> vertexCntPerObj; //オブジェクトごとの頂点数
-	std::vector<std::string> splitData;
-	std::vector<int> obj_splitPos;
-
-	v.reserve(524288);
-	vt.reserve(524288);
-	vn.reserve(524288);
-
-	v.push_back(XMFLOAT3(0.0f, 0.0f, 0.0f));
-	vt.push_back(XMFLOAT2(0.0f, 0.0f));
-	vn.push_back(XMFLOAT3(0.0f, 0.0f, 0.0f));
-
-	char lineData[MAX_COUNT_LINEDATA];
-
-	int objCnt = 0;
-
-	while (fgets(lineData, MAX_COUNT_LINEDATA, modelFp) != NULL) {
-		splitBlank(lineData, splitData);
-		if (splitData[0] == "v") {
-			try {
-				v.push_back(XMFLOAT3(std::stof(splitData[1]), std::stof(splitData[2]), std::stof(splitData[3])));
-			}
-			catch (std::exception& e) {
-				v.push_back(XMFLOAT3(0, 0, 0));
-			}
-		}
-		else if (splitData[0] == "vt") {
-			try {
-				vt.push_back(XMFLOAT2(std::stof(splitData[1]), std::stof(splitData[2])));
-			}
-			catch (std::exception& e) {
-				vt.push_back(XMFLOAT2(0, 0));
-			}
-		}
-		else if (splitData[0] == "vn") {
-			try {
-				vn.push_back(XMFLOAT3(std::stof(splitData[1]), std::stof(splitData[2]), std::stof(splitData[3])));
-			}
-			catch (std::exception& e) {
-				vn.push_back(XMFLOAT3(0, 0, 0));
-			}
-		}
-		else if (splitData[0] == "f") {
-			std::vector<int*> tmpData(splitData.size() - 1);
-			for (int i = 0; i < tmpData.size(); i++) {
-				tmpData[i] = (int*)malloc(sizeof(int) * 3);
-				splitSlash(splitData[i + 1], tmpData[i]);
-			}
-			fd.push_back(tmpData);
-		}
-		else if (splitData[0] == "usemtl") {
-			if (objCnt > 0) {
-				obj_splitPos.push_back(fd.size() - 1);
-			}
-			objCnt++;
-		}
-
-		splitData.clear();
-	}
-	//ファイルを閉じる
-	fclose(modelFp);
-
-	obj_splitPos.push_back(fd.size() - 1);
-
-	//データの生成
-	unsigned indexNum = 0;
-	std::vector<DX12Vertex> vertices;
-	std::vector<unsigned> indices;
-	m_obj.resize(objCnt);
-	int offset = 0;
-	int k = 0;
-	for (int i = 0; i < fd.size(); i++) {
-		//頂点データ
-		for (int j = 0; j < fd[i].size(); j++) {
-			DX12Vertex tmpVert;
-			tmpVert.position = v[fd[i][j][0]];
-			tmpVert.uv = vt[fd[i][j][1]];
-			tmpVert.normal = vn[fd[i][j][2]];
-			vertices.push_back(tmpVert);
-		}
-
-		//インデックスデータ
-		int indexOffset = indexNum;
-		for (int j = 0; j < (fd[i].size() - 2); j++) {
-			indices.push_back(indexOffset);
-			indices.push_back(indexOffset + 1 + j);
-			indices.push_back(indexOffset + 2 + j);
-		}
-		indexNum += fd[i].size();
-
-		//3Dオブジェクト生成
-		if (i == obj_splitPos[k]) {
-			m_obj[k] = new DX12Object3D();
-			m_obj[k]->m_name = "Material" + std::to_string(k);
-
-			m_obj[k]->m_vertices.resize(vertices.size());
-			std::copy(vertices.begin(), vertices.end(), m_obj[k]->m_vertices.begin());
-			vertices.clear();
-
-			m_obj[k]->m_indices.resize(indices.size());
-			std::copy(indices.begin(), indices.end(), m_obj[k]->m_indices.begin());
-			indices.clear();
-
-			m_obj[k]->Create(device);
-			if (k + 1 < obj_splitPos.size()) k++;
-			indexNum = 0;
-		}
-	}
-
+	//モデル名
+	char tmp[256];
+	pc.GetLeafDirectryName(meshPath, tmp, 256);
 	char name[256];
-	pc.GetLeafDirectryName(meshPath, name, 256);
-	m_name = name;
+	pc.ReplaceExtension(tmp, name, nullptr, 256);
 
-	std::cout << "頂点数 : " << v.size() << std::endl;
-	std::cout << "マテリアル数 : " << objCnt << std::endl;
+	//バイナリデータを開く
+	std::ifstream ifs(fmdPath, std::ios::binary);
+	//開けない = まだ存在していないので通常読み込み
+	if (!ifs) {
+
+		//メッシュファイルを開く
+		FILE* modelFp;
+		if (fopen_s(&modelFp, meshPath, "r") != 0) {
+			return ErrorMessage("Failed to Open MeshFile : " + filePath);
+		}
+
+		//頂点データ一時保管用配列
+		std::vector<XMFLOAT3> v;
+		std::vector<XMFLOAT2> vt;
+		std::vector<XMFLOAT3> vn;
+		std::vector<std::vector<int*>> fd;
+		std::vector<unsigned> vertexCntPerObj; //オブジェクトごとの頂点数
+		std::vector<std::string> splitData;
+		std::vector<int> obj_splitPos;
+
+		v.reserve(524288);
+		vt.reserve(524288);
+		vn.reserve(524288);
+
+		v.push_back(XMFLOAT3(0.0f, 0.0f, 0.0f));
+		vt.push_back(XMFLOAT2(0.0f, 0.0f));
+		vn.push_back(XMFLOAT3(0.0f, 0.0f, 0.0f));
+
+		char lineData[MAX_COUNT_LINEDATA];
+
+		int objCnt = 0;
+
+		while (fgets(lineData, MAX_COUNT_LINEDATA, modelFp) != NULL) {
+			splitBlank(lineData, splitData);
+			if (splitData[0] == "v") {
+				try {
+					v.push_back(XMFLOAT3(std::stof(splitData[1]), std::stof(splitData[2]), std::stof(splitData[3])));
+				}
+				catch (std::exception& e) {
+					v.push_back(XMFLOAT3(0, 0, 0));
+				}
+			}
+			else if (splitData[0] == "vt") {
+				try {
+					vt.push_back(XMFLOAT2(std::stof(splitData[1]), std::stof(splitData[2])));
+				}
+				catch (std::exception& e) {
+					vt.push_back(XMFLOAT2(0, 0));
+				}
+			}
+			else if (splitData[0] == "vn") {
+				try {
+					vn.push_back(XMFLOAT3(std::stof(splitData[1]), std::stof(splitData[2]), std::stof(splitData[3])));
+				}
+				catch (std::exception& e) {
+					vn.push_back(XMFLOAT3(0, 0, 0));
+				}
+			}
+			else if (splitData[0] == "f") {
+				std::vector<int*> tmpData(splitData.size() - 1);
+				for (int i = 0; i < tmpData.size(); i++) {
+					tmpData[i] = (int*)malloc(sizeof(int) * 3);
+					splitSlash(splitData[i + 1], tmpData[i]);
+				}
+				fd.push_back(tmpData);
+			}
+			else if (splitData[0] == "usemtl") {
+				if (objCnt > 0) {
+					obj_splitPos.push_back(fd.size() - 1);
+				}
+				objCnt++;
+			}
+
+			splitData.clear();
+		}
+		//ファイルを閉じる
+		fclose(modelFp);
+
+		obj_splitPos.push_back(fd.size() - 1);
+
+		//データの生成
+		unsigned indexNum = 0;
+		std::vector<DX12Vertex> vertices;
+		std::vector<unsigned> indices;
+		m_obj.resize(objCnt);
+		int offset = 0;
+		int k = 0;
+
+		flatbuffers::FlatBufferBuilder builder;
+		std::vector<flatbuffers::Offset<DX12ModelData::ModelChild>> fbModelChild_vector;
+		fbModelChild_vector.resize(objCnt);
+		flatbuffers::Offset<DX12ModelData::ModelParent> fbModelParent;
+
+		for (int i = 0; i < fd.size(); i++) {
+			//頂点データ
+			for (int j = 0; j < fd[i].size(); j++) {
+				DX12Vertex tmpVert;
+				tmpVert.position = v[fd[i][j][0]];
+				tmpVert.uv = vt[fd[i][j][1]];
+				tmpVert.normal = vn[fd[i][j][2]];
+				vertices.push_back(tmpVert);
+			}
+
+			//インデックスデータ
+			int indexOffset = indexNum;
+			for (int j = 0; j < (fd[i].size() - 2); j++) {
+				indices.push_back(indexOffset);
+				indices.push_back(indexOffset + 1 + j);
+				indices.push_back(indexOffset + 2 + j);
+			}
+			indexNum += fd[i].size();
+
+			//3Dオブジェクト生成
+			if (i == obj_splitPos[k]) {
+				{
+					//フラットバッファ生成
+					std::vector<flatbuffers::Offset<DX12ModelData::Vertex>> fbVertices_vector;
+					fbVertices_vector.resize(vertices.size());
+					for (int j = 0; j < fbVertices_vector.size(); j++) {
+						DX12ModelData::Position pos = DX12ModelData::Position(vertices[j].position.x, vertices[j].position.y, vertices[j].position.z);
+						DX12ModelData::Normal norm = DX12ModelData::Normal(vertices[j].normal.x, vertices[j].normal.y, vertices[j].normal.z);
+						DX12ModelData::UV uv = DX12ModelData::UV(vertices[j].uv.x, vertices[j].uv.y);
+
+						flatbuffers::Offset<DX12ModelData::Vertex> tmp;
+
+						fbVertices_vector[j] = DX12ModelData::CreateVertex(builder, &pos, &norm, &uv);
+					}
+					flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<DX12ModelData::Vertex>>> fbVertices = builder.CreateVector(fbVertices_vector);
+					DX12ModelData::Color ambColor = DX12ModelData::Color(0.0f, 0.0f, 0.0f);
+					DX12ModelData::Color difColor = DX12ModelData::Color(1.0f, 1.0f, 1.0f);
+					DX12ModelData::Color speColor = DX12ModelData::Color(0.0f, 0.0f, 0.0f);
+					float N = 0.0f;
+					flatbuffers::Offset<DX12ModelData::Material> fbMaterial = DX12ModelData::CreateMaterial(builder, &ambColor, &difColor, &speColor, N);
+					auto fbIndices = builder.CreateVector(indices.data(), indices.size());
+					fbModelChild_vector[k] = DX12ModelData::CreateModelChild(builder, fbVertices, fbMaterial, fbIndices);
+				}
+				m_obj[k] = new DX12Object3D();
+				m_obj[k]->m_name = "Material" + std::to_string(k);
+
+				m_obj[k]->m_vertices.resize(vertices.size());
+				std::copy(vertices.begin(), vertices.end(), m_obj[k]->m_vertices.begin());
+				vertices.clear();
+
+				m_obj[k]->m_indices.resize(indices.size());
+				std::copy(indices.begin(), indices.end(), m_obj[k]->m_indices.begin());
+				indices.clear();
+
+				m_obj[k]->Create(device);
+				if (k + 1 < obj_splitPos.size()) k++;
+				indexNum = 0;
+			}
+		}
+		flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<DX12ModelData::ModelChild>>> fbModelChild = builder.CreateVector(fbModelChild_vector);
+		flatbuffers::Offset<DX12ModelData::ModelParent> ModelData = DX12ModelData::CreateModelParent(builder, fbModelChild);
+		builder.Finish(ModelData);
+
+		uint8_t* buf = builder.GetBufferPointer();
+
+		std::ofstream writeFile;
+		writeFile.open(fmdPath, std::ios::out | std::ios::binary);
+		writeFile.write((char*)buf, builder.GetSize());
+		writeFile.close();
+
+		m_name = name;
+	}
+
+	else {
+		ifs.seekg(0, std::ios::end);
+		size_t size = ifs.tellg();
+		ifs.seekg(0, std::ios::beg);
+		char* bbuf = new char[size];
+		ifs.read(bbuf, size);
+		ifs.close();
+		auto data = DX12ModelData::GetModelParent(bbuf);
+
+		//データを与えていく
+		m_obj.resize(data->child()->size());
+		for (int i = 0; i < m_obj.size(); i++) {
+			m_obj[i] = new DX12Object3D();
+			m_obj[i]->m_name = "Material" + std::to_string(i);
+			m_obj[i]->m_vertices.resize(data->child()->Get(i)->vertices()->size());
+			//頂点のコピー
+			for (int j = 0; j < m_obj[i]->m_vertices.size(); j++) {
+				//位置
+				m_obj[i]->m_vertices[j].position.x = data->child()->Get(i)->vertices()->Get(j)->pos()->x();
+				m_obj[i]->m_vertices[j].position.y = data->child()->Get(i)->vertices()->Get(j)->pos()->y();
+				m_obj[i]->m_vertices[j].position.z = data->child()->Get(i)->vertices()->Get(j)->pos()->z();
+				//法線
+				m_obj[i]->m_vertices[j].normal.x = data->child()->Get(i)->vertices()->Get(j)->norm()->x();
+				m_obj[i]->m_vertices[j].normal.y = data->child()->Get(i)->vertices()->Get(j)->norm()->y();
+				m_obj[i]->m_vertices[j].normal.z = data->child()->Get(i)->vertices()->Get(j)->norm()->z();
+				//UV
+				m_obj[i]->m_vertices[j].uv.x = data->child()->Get(i)->vertices()->Get(j)->uv()->u();
+				m_obj[i]->m_vertices[j].uv.y = data->child()->Get(i)->vertices()->Get(j)->uv()->v();
+			}
+			//インデックスのコピー
+			m_obj[i]->m_indices.resize(data->child()->Get(i)->indices()->size());
+			for (int j = 0; j < m_obj[i]->m_indices.size(); j++) {
+				m_obj[i]->m_indices[j] = data->child()->Get(i)->indices()->Get(j);
+			}
+			m_obj[i]->Create(device);
+		}
+		m_name = name;
+	}
+
 	std::cout << "モデル読み込み終了(" << (clock() - loadTime) / 1000 << "秒)" << std::endl;
 
 	return S_OK;

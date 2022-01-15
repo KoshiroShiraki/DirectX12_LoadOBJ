@@ -278,11 +278,9 @@ HRESULT DX12Object3D::Draw(ID3D12GraphicsCommandList* cmdList, ID3D12DescriptorH
 	D3D12_GPU_DESCRIPTOR_HANDLE handle = cbvHeap->GetGPUDescriptorHandleForHeapStart();
 	handle.ptr += cbOffset;
 	cmdList->SetGraphicsRootDescriptorTable(0, handle);
-
 	//頂点とインデックスをセット
 	cmdList->IASetVertexBuffers(0, 1, &m_vbv);
 	cmdList->IASetIndexBuffer(&m_ibv);
-
 	//テクスチャをセット
 	//cmdList->SetDescriptorHeaps(1, &m_texDescHeap);
 	//cmdList->SetGraphicsRootDescriptorTable(2, m_texDescHeap->GetGPUDescriptorHandleForHeapStart());
@@ -290,7 +288,6 @@ HRESULT DX12Object3D::Draw(ID3D12GraphicsCommandList* cmdList, ID3D12DescriptorH
 	//マテリアルをセット
 	cmdList->SetDescriptorHeaps(1, &m_matDescHeap);
 	cmdList->SetGraphicsRootDescriptorTable(1, m_matDescHeap->GetGPUDescriptorHandleForHeapStart());
-	
 	//描画
 	cmdList->DrawIndexedInstanced(m_indices.size(), 1, 0, 0, 0);
 

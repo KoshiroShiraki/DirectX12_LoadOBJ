@@ -26,9 +26,11 @@ HRESULT Application::Initialize() {
 		char objFilesPath[MAX_PATH_LENGTH];
 		pc.AddLeafPath("\\ObjectViewer_D3D12\\Model\\OBJ\\", objFilesPath, fd.cFileName); //Create Object File Path for program
 		DefaultObjFilePaths.push_back(objFilesPath);
+		std::cout << objFilesPath << std::endl;
 		while (FindNextFile(hFind, &fd)) {
 			pc.AddLeafPath("\\ObjectViewer_D3D12\\Model\\OBJ\\", objFilesPath, fd.cFileName);
 			DefaultObjFilePaths.push_back(objFilesPath);
+			std::cout << objFilesPath << std::endl;
 		}
 	}
 

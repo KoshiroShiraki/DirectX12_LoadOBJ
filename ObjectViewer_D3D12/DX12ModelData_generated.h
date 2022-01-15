@@ -274,13 +274,17 @@ struct ModelChild FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   typedef ModelChildBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_VERTICES = 4,
-    VT_MATERIAL = 6
+    VT_MATERIAL = 6,
+    VT_INDICES = 8
   };
   const flatbuffers::Vector<flatbuffers::Offset<DX12ModelData::Vertex>> *vertices() const {
     return GetPointer<const flatbuffers::Vector<flatbuffers::Offset<DX12ModelData::Vertex>> *>(VT_VERTICES);
   }
   const DX12ModelData::Material *material() const {
     return GetPointer<const DX12ModelData::Material *>(VT_MATERIAL);
+  }
+  const flatbuffers::Vector<uint32_t> *indices() const {
+    return GetPointer<const flatbuffers::Vector<uint32_t> *>(VT_INDICES);
   }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -289,6 +293,8 @@ struct ModelChild FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
            verifier.VerifyVectorOfTables(vertices()) &&
            VerifyOffset(verifier, VT_MATERIAL) &&
            verifier.VerifyTable(material()) &&
+           VerifyOffset(verifier, VT_INDICES) &&
+           verifier.VerifyVector(indices()) &&
            verifier.EndTable();
   }
 };
@@ -302,6 +308,9 @@ struct ModelChildBuilder {
   }
   void add_material(flatbuffers::Offset<DX12ModelData::Material> material) {
     fbb_.AddOffset(ModelChild::VT_MATERIAL, material);
+  }
+  void add_indices(flatbuffers::Offset<flatbuffers::Vector<uint32_t>> indices) {
+    fbb_.AddOffset(ModelChild::VT_INDICES, indices);
   }
   explicit ModelChildBuilder(flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -317,8 +326,10 @@ struct ModelChildBuilder {
 inline flatbuffers::Offset<ModelChild> CreateModelChild(
     flatbuffers::FlatBufferBuilder &_fbb,
     flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<DX12ModelData::Vertex>>> vertices = 0,
-    flatbuffers::Offset<DX12ModelData::Material> material = 0) {
+    flatbuffers::Offset<DX12ModelData::Material> material = 0,
+    flatbuffers::Offset<flatbuffers::Vector<uint32_t>> indices = 0) {
   ModelChildBuilder builder_(_fbb);
+  builder_.add_indices(indices);
   builder_.add_material(material);
   builder_.add_vertices(vertices);
   return builder_.Finish();
@@ -327,12 +338,15 @@ inline flatbuffers::Offset<ModelChild> CreateModelChild(
 inline flatbuffers::Offset<ModelChild> CreateModelChildDirect(
     flatbuffers::FlatBufferBuilder &_fbb,
     const std::vector<flatbuffers::Offset<DX12ModelData::Vertex>> *vertices = nullptr,
-    flatbuffers::Offset<DX12ModelData::Material> material = 0) {
+    flatbuffers::Offset<DX12ModelData::Material> material = 0,
+    const std::vector<uint32_t> *indices = nullptr) {
   auto vertices__ = vertices ? _fbb.CreateVector<flatbuffers::Offset<DX12ModelData::Vertex>>(*vertices) : 0;
+  auto indices__ = indices ? _fbb.CreateVector<uint32_t>(*indices) : 0;
   return DX12ModelData::CreateModelChild(
       _fbb,
       vertices__,
-      material);
+      material,
+      indices__);
 }
 
 struct ModelParent FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {

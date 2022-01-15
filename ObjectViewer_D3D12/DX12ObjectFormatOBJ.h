@@ -2,6 +2,7 @@
 #include<time.h>
 #include"DX12Object3D.h"
 #include"PathController.h"
+#include<fstream>
 
 #define MAX_COUNT_LINEDATA 100000
 

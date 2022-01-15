@@ -135,3 +135,44 @@ int PathController::PathFinder(const char* defaultPath, char* path, const char* 
 	}
 	else return -1;
 }
+
+void PathController::ReplaceExtension(const char* defaultPath, char* path, const char* ex, size_t path_length) {
+	int dotpos = 0;
+	
+	//‚à‚µŠg’£qex‚ªnullptr‚¾‚Á‚½ê‡AdefaultPath‚ÌŠg’£q‚ğæ‚èœ‚¢‚½‚à‚Ì‚ğ•Ô‚·
+	if (ex == nullptr) {
+		while (*(defaultPath + dotpos) != '.') {
+			if (*(defaultPath + dotpos) == '\0') {
+				return;
+			}
+			else if (dotpos < MAX_PATH_LENGTH) {
+				*(path + dotpos) = *(defaultPath + dotpos);
+				dotpos++;
+			}
+			else return;
+		}
+		*(path + dotpos) = '\0';
+		return;
+	}
+
+	else {
+		char tmp[MAX_PATH_LENGTH];
+		//.‚Ü‚Å‚Ì•¶š—ñ‚ğtmp‚ÉŠi”[
+		while (*(defaultPath + dotpos) != '.') {
+			if (*(defaultPath + dotpos) == '\0') {
+				return;
+			}
+			else if (dotpos < MAX_PATH_LENGTH) {
+				*(tmp + dotpos) = *(defaultPath + dotpos);
+				dotpos++;
+			}
+			else return;
+		}
+		if (dotpos + 1 < MAX_PATH_LENGTH) {
+			*(tmp + dotpos) = *(defaultPath + dotpos);
+			*(tmp + dotpos + 1) = '\0';
+		}
+		//tmp‚Éex‚ğ‚Â‚¯‚½•¶š—ñ‚ğpath‚ÉŠi”[
+		AddLeafPath(tmp, path, ex);
+	}
+}
