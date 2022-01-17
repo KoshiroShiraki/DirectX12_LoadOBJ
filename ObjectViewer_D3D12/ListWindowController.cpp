@@ -13,16 +13,9 @@ HRESULT ListWindowController::CreateChildWindow() {
 	//newボタン大きさ
 	int btn_width = m_client_width / (m_btnCnt + 5);
 	int btn_height = m_client_height / 40;
-	//ボタン名
-	const char* btn_name[m_btnCnt] =
-	{
-		"new",
-		"delete",
-		"quit",
-	};
 	//ボタン位置
 	int btn_offsetX = 0;
-	int btn_offsetY[m_btnCnt] = { 0,btn_height * 2,btn_height * 3 };
+	int btn_offsetY[m_btnCnt] = { 0,btn_height * 2,btn_height * 3,btn_height * 4,btn_height * 5,btn_height * 6,btn_height * 7 };
 
 	//コンボボックス大きさ
 	int cb_width = m_client_width - btn_width;
@@ -39,15 +32,28 @@ HRESULT ListWindowController::CreateChildWindow() {
 	int lb_offsetX[m_lbCnt] = { btn_width + 15, lb_offsetX[0] + lb_width + 15};
 	int lb_offsetY[m_lbCnt] = { btn_height * 2, btn_height * 2 };
 
-	if (FAILED(CreateButton(m_bhwnd[0], btn_name[0], btn_offsetX, btn_offsetY[0], btn_width, btn_height, m_newbtnID))) {
+	if (FAILED(CreateButton(m_bhwnd[0], m_btnName[0], btn_offsetX, btn_offsetY[0], btn_width, btn_height, m_newbtnID))) {
 		return ErrorMessage("Failed to Create ChildWindow");
 	}
-	if (FAILED(CreateButton(m_bhwnd[1], btn_name[1], btn_offsetX, btn_offsetY[1], btn_width, btn_height, m_deletebtnID))) {
+	if (FAILED(CreateButton(m_bhwnd[1], m_btnName[1], btn_offsetX, btn_offsetY[1], btn_width, btn_height, m_renamebtnID))) {
 		return ErrorMessage("Failed to Create ChildWindow");
 	}
-	if (FAILED(CreateButton(m_bhwnd[2], btn_name[2], btn_offsetX, btn_offsetY[2], btn_width, btn_height, m_quitbtnID))) {
+	if (FAILED(CreateButton(m_bhwnd[2], m_btnName[2], btn_offsetX, btn_offsetY[2], btn_width, btn_height, m_duplicatebtnID))) {
 		return ErrorMessage("Failed to Create ChildWindow");
 	}
+	if (FAILED(CreateButton(m_bhwnd[3], m_btnName[3], btn_offsetX, btn_offsetY[3], btn_width, btn_height, m_savebtnID))) {
+		return ErrorMessage("Failed to Create ChildWindow");
+	}
+	if (FAILED(CreateButton(m_bhwnd[4], m_btnName[4], btn_offsetX, btn_offsetY[4], btn_width, btn_height, m_deletebtnID))) {
+		return ErrorMessage("Failed to Create ChildWindow");
+	}
+	if (FAILED(CreateButton(m_bhwnd[5], m_btnName[5], btn_offsetX, btn_offsetY[5], btn_width, btn_height, m_savescenebtnID))) {
+		return ErrorMessage("Failed to Create ChildWindow");
+	}
+	if (FAILED(CreateButton(m_bhwnd[6], m_btnName[6], btn_offsetX, btn_offsetY[6], btn_width, btn_height, m_quitbtnID))) {
+		return ErrorMessage("Failed to Create ChildWindow");
+	}
+
 	if (FAILED(CreateDropDownComboBox(m_chwnd, "ComboBox", cb_offsetX, cb_offsetY, cb_width, cb_height,m_cbID))) {
 		return ErrorMessage("Failed to Create ChildWindow");
 	}

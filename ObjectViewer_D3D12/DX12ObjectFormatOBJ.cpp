@@ -178,6 +178,8 @@ HRESULT DX12ObjectFormatOBJ::LoadVertexFromOBJFile(std::string filePath, ID3D12D
 					auto fbIndices = builder.CreateVector(indices.data(), indices.size());
 					fbModelChild_vector[k] = DX12ModelData::CreateModelChild(builder, fbVertices, fbMaterial, fbIndices);
 				}
+
+
 				m_obj[k] = new DX12Object3D();
 				m_obj[k]->m_name = "Material" + std::to_string(k);
 
@@ -194,6 +196,8 @@ HRESULT DX12ObjectFormatOBJ::LoadVertexFromOBJFile(std::string filePath, ID3D12D
 				indexNum = 0;
 			}
 		}
+
+		//出来上がったバイナリデータを出力(拡張子は.fmd = flatbuffers model data)
 		flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<DX12ModelData::ModelChild>>> fbModelChild = builder.CreateVector(fbModelChild_vector);
 		flatbuffers::Offset<DX12ModelData::ModelParent> ModelData = DX12ModelData::CreateModelParent(builder, fbModelChild);
 		builder.Finish(ModelData);

@@ -8,12 +8,16 @@ public:
 
 public:
 	HWND m_bhwnd[3]; //ボタンウィンドウハンドル
-	static const int m_btnCnt = 3;
+	static const int m_btnCnt = 7;
 	int m_btn_width;
 	int m_btn_height;
 	const char* m_btnName[m_btnCnt] = {
 		"new",
+		"rename",
+		"duplicate",
+		"save",
 		"delete",
+		"save scene",
 		"quit",
 	};
 	int m_btn_offsetX;
@@ -24,11 +28,15 @@ public:
 
 	//ウィンドウID
 	static const int m_newbtnID = 0;
-	static const int m_deletebtnID = 1;
-	static const int m_quitbtnID = 2;
-	static const int m_cbID = 4;
-	static const int m_lbParentID = 5;
-	static const int m_lbChildID = 6;
+	static const int m_renamebtnID = 1;
+	static const int m_duplicatebtnID = 2;
+	static const int m_savebtnID = 3;
+	static const int m_deletebtnID = 4;
+	static const int m_savescenebtnID = 5;
+	static const int m_quitbtnID = 6;
+	static const int m_cbID = 7;
+	static const int m_lbParentID = 8;
+	static const int m_lbChildID = 9;
 
 	bool m_isLoad = false;
 	bool m_isDelete = false;
