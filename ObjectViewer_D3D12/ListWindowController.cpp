@@ -11,7 +11,7 @@ ListWindowController::~ListWindowController() {
 
 HRESULT ListWindowController::CreateChildWindow() {
 	//newボタン大きさ
-	int btn_width = m_client_width / (m_btnCnt + 5);
+	int btn_width = m_client_width / 5.5;
 	int btn_height = m_client_height / 40;
 	//ボタン位置
 	int btn_offsetX = 0;
@@ -114,7 +114,12 @@ LRESULT ListWindowController::WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LP
 				m_isDelete = true;
 			}
 			return 0;
-		case m_quitbtnID : //"qui"ボタンの時
+		case m_duplicatebtnID : //"duplicate"ボタンの時
+			if (!m_isDuplicate) {
+				m_isDuplicate = true;
+			}
+			return 0;
+		case m_quitbtnID : //"quit"ボタンの時
 			PostQuitMessage(0);
 			return 0;
 		case m_cbID : //"ComboBox"の時

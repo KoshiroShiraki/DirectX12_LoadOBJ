@@ -19,7 +19,7 @@ float4 main(Output input) : SV_TARGET
 	float4 lightColor = float4(light_col, 0);
 
 	if (shadowTex.Sample(smp, comparePos) < lpos.z - 0.001f) {
-		return float4(f_ambient + f_diffuse + lightColor) * 0.5;
+		return float4(f_ambient + f_diffuse + f_specular + lightColor) * 0.5;
 	}
 	return f_ambient + f_diffuse + f_specular + lightColor;
 }

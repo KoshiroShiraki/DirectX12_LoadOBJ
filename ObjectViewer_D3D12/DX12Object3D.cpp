@@ -2,28 +2,6 @@
 #include"DX12Object3D.h"
 
 DX12Object3D::DX12Object3D() {
-	m_vertices.resize(4);
-	m_vertices[0].position = XMFLOAT3(-100, 0, 100);
-	m_vertices[1].position = XMFLOAT3(100, 0, 100);
-	m_vertices[2].position = XMFLOAT3(100, 0, -100);
-	m_vertices[3].position = XMFLOAT3(-100, 0, -100);
-	m_vertices[0].normal = XMFLOAT3(0, 0, -1);
-	m_vertices[1].normal = XMFLOAT3(0, 0, -1);
-	m_vertices[2].normal = XMFLOAT3(0, 0, -1);
-	m_vertices[3].normal = XMFLOAT3(0, 0, -1);
-	m_vertices[0].uv = XMFLOAT2(0, 0);
-	m_vertices[1].uv = XMFLOAT2(1, 0);
-	m_vertices[2].uv = XMFLOAT2(1, 1);
-	m_vertices[3].uv = XMFLOAT2(0, 1);
-
-	m_indices.resize(6);
-	m_indices[0] = 0;
-	m_indices[1] = 1;
-	m_indices[2] = 2;
-	m_indices[3] = 0;
-	m_indices[4] = 2;
-	m_indices[5] = 3;
-
 	m_material.ambient = XMFLOAT4(0, 0, 0, 1);
 	m_material.diffuse = XMFLOAT4(1, 1, 1, 1);
 	m_material.specular = XMFLOAT4(1, 1, 1, 1);

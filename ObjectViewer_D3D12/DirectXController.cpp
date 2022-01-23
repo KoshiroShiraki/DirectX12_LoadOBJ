@@ -900,7 +900,7 @@ HRESULT DirectXController::DrawFromLight(Light& light) {
 
 		//ビューポートとシザー矩形をセット
 		m_cmdList->RSSetViewports(1, &m_svp);
-		//m_cmdList->RSSetScissorRects(1, &m_fsr);
+		m_cmdList->RSSetScissorRects(1, &m_fsr);
 
 		//プリミティブトポロジをセット
 		m_cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -1107,6 +1107,14 @@ HRESULT DirectXController::LoadObject(const char* objName) {
 		m_LoadedObjCount++;
 	}
 
+	return S_OK;
+}
+
+HRESULT DirectXController::DuplicateObject(int objIdx) {
+	if (objIdx != -1) { //ちゃんとモデルが選択されているか確認
+		m_objsOBJ.push_back(new DX12ObjectFormatOBJ(m_objsOBJ[objIdx], m_device)); //要素を追加
+		m_LoadedObjCount++;
+	}
 	return S_OK;
 }
 

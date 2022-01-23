@@ -38,7 +38,7 @@ HRESULT Application::Initialize() {
 	m_mwc = new MainWindowController(hInst, window_Width, window_Height);
 	m_mwc->InitWindow("Main", "Main");
 	//リストウィンドウの生成
-	m_lwc = new ListWindowController(hInst, 500, 1000);
+	m_lwc = new ListWindowController(hInst, 500, 800);
 	m_lwc->InitWindow("List", "List");
 	m_lwc->InitChildWindow();
 	//エディタウィンドウの生成
@@ -73,6 +73,7 @@ HRESULT Application::Initialize() {
 		return ErrorMessage("Failed to Create GraphicsPipeline");
 	}
 
+	return S_OK;
 }
 
 HRESULT Application::Update() {
@@ -88,7 +89,7 @@ HRESULT Application::Update() {
 	//3. カメラ(ビュー行列)の更新
 	camera.update(XMFLOAT3(input.inputKey[KEY_D] * (-1) + input.inputKey[KEY_A], input.inputKey[VK_LSHIFT] * (input.inputKey[KEY_W] * (-1) + input.inputKey[KEY_S]), (1 - input.inputKey[VK_LSHIFT]) * (input.inputKey[KEY_W] * (-1) + input.inputKey[KEY_S])), XMFLOAT3(0, input.dPos.x, input.dPos.y), input.inputKey[VK_RBUTTON]);
 
-	//4. 選択されているオブジェクトの更新(位置姿勢サイズ、マテリアルカラー)
+	//4. 選択されているモデルの更新(位置姿勢サイズ、マテリアルカラー)
 	if (m_ewc->m_editFlag) {
 		if (m_lwc->m_parentIdx != -1) DxCon.m_objsOBJ[m_lwc->m_parentIdx]->UpdateTransform(m_ewc->m_edValue);
 		if (m_lwc->m_childIdx != -1) DxCon.m_objsOBJ[m_lwc->m_parentIdx]->m_obj[m_lwc->m_childIdx]->UpdateMaterial(m_ewc->m_edValue);
@@ -99,17 +100,17 @@ HRESULT Application::Update() {
 
 	//5. ライト視点からのレンダリング(シャドウマップ用)
 	if (FAILED(DxCon.DrawFromLight(light))) {
-		return ErrorMessage("Failed to Update");
+		return ErrorMessage("Failed to DrawFromLight");
 	}
 
 	//5. カメラ視点からのレンダリング(マルチパス用<-今回はやってない)
 	if (FAILED(DxCon.DrawFromCamera(camera,light))) {
-		return ErrorMessage("Failed to Update");
+		return ErrorMessage("Failed to DrawFromCamera");
 	}
 
 	//6. 最終的なレンダリング結果をバックバッファにレンダリングし、ウィンドウへ表示する
 	if (FAILED(DxCon.finalDraw())) {
-		return ErrorMessage("Failed to Update");
+		return ErrorMessage("Failed to finalDraw");
 	}
 }
 
@@ -127,6 +128,15 @@ void Application::UpdateListBox() {
 
 		}
 		m_lwc->m_isLoad = false;
+	}
+
+	//モデルの複製
+	if (m_lwc->m_isDuplicate) {
+		if (m_lwc->m_parentIdx != -1) {
+			DxCon.DuplicateObject(m_lwc->m_parentIdx);
+			UpdateParentListBox();
+		}
+		m_lwc->m_isDuplicate = false;
 	}
 
 	//モデルの削除
@@ -149,6 +159,7 @@ void Application::UpdateListBox() {
 		UpdateChildListBox();
 	}
 	pIdx = m_lwc->m_parentIdx;
+	
 }
 
 void Application::UpdateEditBox() {

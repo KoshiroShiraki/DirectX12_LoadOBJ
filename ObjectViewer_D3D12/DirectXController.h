@@ -145,6 +145,7 @@ public:
 	HRESULT DrawFromCamera(Camera camera, Light light);
 	HRESULT finalDraw();
 	HRESULT LoadObject(const char* objName);
+	HRESULT DuplicateObject(int objIdx);
 	HRESULT DeleteObject(int objIdx);
 	
 	void EnableDebugLayer();

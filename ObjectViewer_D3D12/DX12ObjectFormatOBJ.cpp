@@ -9,6 +9,35 @@ DX12ObjectFormatOBJ::DX12ObjectFormatOBJ() {
 	m_wMatrix = XMMatrixIdentity();
 }
 
+DX12ObjectFormatOBJ::DX12ObjectFormatOBJ(DX12ObjectFormatOBJ* origin, ID3D12Device* device) {
+	m_name = origin->m_name + "(copy)";
+
+	m_transform.position = origin->m_transform.position;
+	m_transform.rotation = origin->m_transform.rotation;
+	m_transform.size = origin->m_transform.size;
+
+	//初期行列はオリジナルモデルのパラメータを反映
+	XMMATRIX posMat = XMMatrixTranslation(m_transform.position.x, m_transform.position.y, m_transform.position.z);
+	XMMATRIX rotMat = XMMatrixRotationRollPitchYaw(m_transform.rotation.x * XM_PI / 180, m_transform.rotation.y * XM_PI / 180, m_transform.rotation.z * XM_PI / 180);
+	XMMATRIX sizMat = XMMatrixScaling(m_transform.size.x, m_transform.size.y, m_transform.size.z);
+
+	m_wMatrix = sizMat * rotMat * posMat; //Create New Matrix to hand mapMatrix
+
+	m_obj.resize(origin->m_obj.size()); //階層モデルの生成
+	for (int i = 0; i < m_obj.size(); i++) {
+		m_obj[i] = new DX12Object3D();
+		//頂点とインデックスのコピー代入
+		m_obj[i]->m_vertices.resize(origin->m_obj[i]->m_vertices.size());
+		std::copy(origin->m_obj[i]->m_vertices.begin(), origin->m_obj[i]->m_vertices.end(), m_obj[i]->m_vertices.begin());
+		m_obj[i]->m_indices.resize(origin->m_obj[i]->m_indices.size());
+		std::copy(origin->m_obj[i]->m_indices.begin(), origin->m_obj[i]->m_indices.end(), m_obj[i]->m_indices.begin());
+		//マテリアルのコピー代入
+		memcpy_s(&m_obj[i]->m_material, sizeof(DX12Material), &origin->m_obj[i]->m_material, sizeof(DX12Material));
+
+		m_obj[i]->Create(device); //生成
+	}
+}
+
 DX12ObjectFormatOBJ::~DX12ObjectFormatOBJ() {
 	for (int i = 0; i < m_obj.size(); i++) {
 		if (m_obj[i] != nullptr) {

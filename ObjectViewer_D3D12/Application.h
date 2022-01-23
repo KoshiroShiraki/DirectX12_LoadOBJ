@@ -3,6 +3,7 @@
 #include<tchar.h>
 #include<string>
 #include<iostream>
+#include<ShObjIdl_core.h>
 #include"DirectXController.h"
 #include"ConstValue.h"
 #include"PathController.h"
@@ -41,4 +42,6 @@ public:
 	HRESULT Initialize();
 	HRESULT Update();
 	HRESULT Terminate();
+	HRESULT SaveScene(); //現在のシーンをセーブする
+	HRESULT LoadScene(); //保存済みのシーンをロードする
 };

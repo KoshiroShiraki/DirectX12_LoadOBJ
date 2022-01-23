@@ -9,6 +9,7 @@
 class DX12ObjectFormatOBJ {
 public :
 	DX12ObjectFormatOBJ();
+	DX12ObjectFormatOBJ(DX12ObjectFormatOBJ* origin, ID3D12Device* device); //既存のモデルのパラメータを使用する場合
 	~DX12ObjectFormatOBJ();
 
 public :
