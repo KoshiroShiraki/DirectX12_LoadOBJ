@@ -41,6 +41,8 @@ public:
 	bool m_isLoad = false;
 	bool m_isDelete = false;
 	bool m_isDuplicate = false;
+	bool m_isRename = false;
+	bool m_isSave = false;
 	bool m_isParentChanged = false;
 	bool m_isChildChanged = false;
 	int m_loadIdx = -1; //現在選択されているロード可能オブジェクトのID

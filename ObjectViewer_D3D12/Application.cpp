@@ -12,26 +12,10 @@ HRESULT Application::Initialize() {
 	HRESULT hr;
 
 	//ロード可能なモデルファイルを見つけておく
-	PathController pc;
-	char objsPath[MAX_PATH_LENGTH];
-
-	pc.AddLeafPath(pc.basePath, objsPath, "\\ObjectViewer_D3D12\\Model\\OBJ\\*.obj");
-
-	HANDLE hFind;
-	WIN32_FIND_DATA fd;
-	hFind = FindFirstFile(objsPath, &fd);
-	if (hFind == INVALID_HANDLE_VALUE) {
-	}
-	else {
-		char objFilesPath[MAX_PATH_LENGTH];
-		pc.AddLeafPath("\\ObjectViewer_D3D12\\Model\\OBJ\\", objFilesPath, fd.cFileName); //Create Object File Path for program
-		DefaultObjFilePaths.push_back(objFilesPath);
-		std::cout << objFilesPath << std::endl;
-		while (FindNextFile(hFind, &fd)) {
-			pc.AddLeafPath("\\ObjectViewer_D3D12\\Model\\OBJ\\", objFilesPath, fd.cFileName);
-			DefaultObjFilePaths.push_back(objFilesPath);
-			std::cout << objFilesPath << std::endl;
-		}
+	SeekFile("obj");
+	SeekFile("fmd");
+	for (int i = 0; i < DefaultObjFilePaths.size(); i++) {
+		std::cout << DefaultObjFilePaths[i] << std::endl;
 	}
 
 	//メインウィンドウの生成
@@ -41,15 +25,21 @@ HRESULT Application::Initialize() {
 	m_lwc = new ListWindowController(hInst, 500, 800);
 	m_lwc->InitWindow("List", "List");
 	m_lwc->InitChildWindow();
+	UpdateComboBox(); //中身を更新
 	//エディタウィンドウの生成
 	m_ewc = new EditWindowController(hInst, 500, 350);
 	m_ewc->InitWindow("Editor", "Editor");
-	
+	//リネームウィンドウの生成
+	m_rwc = new RenameWindowController(hInst, 500, 100);
+	m_rwc->InitWindow("Rename", "Rename");
+	EnableWindow(m_rwc->m_hwnd, FALSE); //最初は使わないので無効かつ不可視にしておく
+	ShowWindow(m_rwc->m_hwnd, SW_HIDE);
+
 	//ウィンドウを表示する
 	ShowWindow(m_mwc->m_hwnd, SW_SHOW);
 	ShowWindow(m_lwc->m_hwnd, SW_SHOW);
 	ShowWindow(m_ewc->m_hwnd, SW_SHOW);
-	
+
 	//DirectXインタフェースの初期化
 	if (FAILED(DxCon.InitD3D(m_mwc->m_hwnd))) {
 		return ErrorMessage("Failed to Init3D");
@@ -77,19 +67,40 @@ HRESULT Application::Initialize() {
 }
 
 HRESULT Application::Update() {
-	//1. 入力情報の更新
-	input.update();
-
-	//2. リストボックスの更新(newとDelete)
+	//1. リストボックスの更新(newとDelete)
 	UpdateListBox();
 
-	//3. エディットボックスの更新(現在選択されているモデルの情報を反映)
+	//2. エディットボックスの更新(現在選択されているモデルの情報を反映)
 	UpdateEditBox();
 
-	//3. カメラ(ビュー行列)の更新
+	//3. リネームボタンが押されたら、リネームウィンドウの表示
+	RenameObject();
+
+	//4. セーブボタンが押されたとき
+	if (m_lwc->m_isSave) {
+		if (m_lwc->m_parentIdx != -1) {
+			DxCon.m_objsOBJ[m_lwc->m_parentIdx]->SaveFMDFile();
+
+			//セーブが行われたので、モデルパス配列とコンボボックスを更新する
+			DefaultObjFilePaths.clear();
+			DefaultObjFilePaths.shrink_to_fit();
+			SeekFile("obj");
+			SeekFile("fmd");
+
+			UpdateComboBox();
+		}
+
+		m_lwc->m_isSave = false;
+	}
+
+	//5. 入力情報の更新(リネーム中でなければ)
+	if(!m_lwc->m_isRename) input.update();
+
+
+	//6. カメラ(ビュー行列)の更新
 	camera.update(XMFLOAT3(input.inputKey[KEY_D] * (-1) + input.inputKey[KEY_A], input.inputKey[VK_LSHIFT] * (input.inputKey[KEY_W] * (-1) + input.inputKey[KEY_S]), (1 - input.inputKey[VK_LSHIFT]) * (input.inputKey[KEY_W] * (-1) + input.inputKey[KEY_S])), XMFLOAT3(0, input.dPos.x, input.dPos.y), input.inputKey[VK_RBUTTON]);
 
-	//4. 選択されているモデルの更新(位置姿勢サイズ、マテリアルカラー)
+	//7. 選択されているモデルの更新(位置姿勢サイズ、マテリアルカラー)
 	if (m_ewc->m_editFlag) {
 		if (m_lwc->m_parentIdx != -1) DxCon.m_objsOBJ[m_lwc->m_parentIdx]->UpdateTransform(m_ewc->m_edValue);
 		if (m_lwc->m_childIdx != -1) DxCon.m_objsOBJ[m_lwc->m_parentIdx]->m_obj[m_lwc->m_childIdx]->UpdateMaterial(m_ewc->m_edValue);
@@ -98,19 +109,34 @@ HRESULT Application::Update() {
 		m_ewc->m_editFlag = false;
 	}
 
-	//5. ライト視点からのレンダリング(シャドウマップ用)
+	//8. ライト視点からのレンダリング(シャドウマップ用)
 	if (FAILED(DxCon.DrawFromLight(light))) {
 		return ErrorMessage("Failed to DrawFromLight");
 	}
 
-	//5. カメラ視点からのレンダリング(マルチパス用<-今回はやってない)
+	//9. カメラ視点からのレンダリング(マルチパス用<-今回はやってない)
 	if (FAILED(DxCon.DrawFromCamera(camera,light))) {
 		return ErrorMessage("Failed to DrawFromCamera");
 	}
 
-	//6. 最終的なレンダリング結果をバックバッファにレンダリングし、ウィンドウへ表示する
+	//10. 最終的なレンダリング結果をバックバッファにレンダリングし、ウィンドウへ表示する
 	if (FAILED(DxCon.finalDraw())) {
 		return ErrorMessage("Failed to finalDraw");
+	}
+}
+
+void Application::UpdateComboBox() {
+	//ListBoxの中身をリセット
+	SendMessage(m_lwc->m_chwnd, CB_RESETCONTENT, 0, 0);
+
+	PathController pc;
+
+	//DefaultObjFilePathsからファイル名 + フォーマット　を抽出して表示
+	for (int i = 0; i < DefaultObjFilePaths.size(); i++) {
+		char name[MAX_PATH_LENGTH];
+		pc.GetLeafDirectryName(DefaultObjFilePaths[i].c_str(), name, MAX_PATH_LENGTH);
+		std::cout << name << std::endl;
+		SendMessage(m_lwc->m_chwnd, CB_ADDSTRING, 0, (LPARAM)name);
 	}
 }
 
@@ -118,7 +144,7 @@ void Application::UpdateListBox() {
 	//モデルのロード
 	if (m_lwc->m_isLoad) {
 		if (m_lwc->m_loadIdx != -1) {
-			if (FAILED(DxCon.LoadObject(m_lwc->m_loadableFileList[m_lwc->m_loadIdx].c_str()))) {
+			if (FAILED(DxCon.LoadObject(DefaultObjFilePaths[m_lwc->m_loadIdx].c_str()))) {
 				ErrorMessage("Failed to LoadObject");
 			}
 			else {
@@ -196,6 +222,57 @@ void Application::UpdateChildListBox() {
 			SendMessage(m_lwc->m_lhwnd[1], LB_ADDSTRING, 0, (LPARAM)DxCon.m_objsOBJ[m_lwc->m_parentIdx]->m_obj[i]->m_name.c_str());
 		}
 	}
+}
+
+void Application::RenameObject() {
+	//リネームボタンが押されたら、リネームウィンドウの表示
+	if (m_lwc->m_isRename) {
+		if (!IsWindowVisible(m_rwc->m_hwnd)) {
+			EnableWindow(m_rwc->m_hwnd, TRUE);
+			ShowWindow(m_rwc->m_hwnd, SW_SHOW);
+		}
+
+		//リネームウィンドウの完了フラグが立ったら、文字列を参照しモデル名を変更する
+		if (m_rwc->m_renameCompleted) {
+			DxCon.m_objsOBJ[m_lwc->m_parentIdx]->m_name = m_rwc->name;
+
+			//それぞれのフラグを下げる
+			m_rwc->m_renameCompleted = false;
+			m_lwc->m_isRename = false;
+
+			//ウィンドウを非表示に
+			EnableWindow(m_rwc->m_hwnd, FALSE);
+			ShowWindow(m_rwc->m_hwnd, SW_HIDE);
+
+			//リストボックスの更新
+			UpdateParentListBox();
+		}
+	}
+}
+
+HRESULT Application::SeekFile(std::string format) {
+	PathController pc;
+	char path[MAX_PATH_LENGTH];
+
+	pc.AddLeafPath(pc.basePath, path, ("\\ObjectViewer_D3D12\\Model\\OBJ\\*." + format).c_str()); //.format探索用
+
+	//.formatファイルを列挙
+	HANDLE hFind;
+	WIN32_FIND_DATA fd;
+	hFind = FindFirstFile(path, &fd);
+	if (hFind == INVALID_HANDLE_VALUE) {
+		return ErrorMessage(("There is no" + format + " file"));
+	}
+	else {
+		char objFilesPath[MAX_PATH_LENGTH];
+		pc.AddLeafPath("\\ObjectViewer_D3D12\\Model\\OBJ\\", objFilesPath, fd.cFileName);
+		DefaultObjFilePaths.push_back(objFilesPath);
+		while (FindNextFile(hFind, &fd)) {
+			pc.AddLeafPath("\\ObjectViewer_D3D12\\Model\\OBJ\\", objFilesPath, fd.cFileName);
+			DefaultObjFilePaths.push_back(objFilesPath);
+		}
+	}
+	return S_OK;
 }
 
 HRESULT Application::Terminate() {

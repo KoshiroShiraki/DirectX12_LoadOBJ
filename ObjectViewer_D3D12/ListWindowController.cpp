@@ -67,35 +67,6 @@ HRESULT ListWindowController::CreateChildWindow() {
 }
 
 HRESULT ListWindowController::InitChildWindow() {
-	//コンボボックスの中に読み込み可能なモデルファイルを列挙する
-	PathController pc;
-	//探索用文字列
-	char objsPath[MAX_PATH_LENGTH];
-	pc.AddLeafPath(pc.basePath, objsPath, "\\ObjectViewer_D3D12\\Model\\OBJ\\*.obj");
-
-	HANDLE hFind;
-	WIN32_FIND_DATA fd;
-	//見つからなくなるまで、該当ディレクトリ下にて拡張子が.objのファイルを探す
-	hFind = FindFirstFile(objsPath, &fd);
-	if (hFind == INVALID_HANDLE_VALUE) {
-
-	}
-	else {
-		char objFilesPath[MAX_PATH_LENGTH];
-		pc.AddLeafPath("\\ObjectViewer_D3D12\\Model\\OBJ\\", objFilesPath, fd.cFileName);
-		m_loadableFileList.push_back(objFilesPath);
-		while (FindNextFile(hFind, &fd)) {
-			pc.AddLeafPath("\\ObjectViewer_D3D12\\Model\\OBJ\\", objFilesPath, fd.cFileName);
-			m_loadableFileList.push_back(objFilesPath);
-		}
-	}
-
-	//取得したファイルリストをコンボボックスに列挙する
-	for (int i = 0; i < m_loadableFileList.size(); i++) {
-		char name[MAX_PATH_LENGTH];
-		pc.GetLeafDirectryName(m_loadableFileList[i].c_str(), name, MAX_PATH_LENGTH);
-		SendMessage(m_chwnd, CB_ADDSTRING, 0, (LPARAM)name);
-	}
 
 	return S_OK;
 }
@@ -117,6 +88,16 @@ LRESULT ListWindowController::WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LP
 		case m_duplicatebtnID : //"duplicate"ボタンの時
 			if (!m_isDuplicate) {
 				m_isDuplicate = true;
+			}
+			return 0;
+		case m_renamebtnID: //"Rename"ボタンの時
+			if (!m_isRename && m_parentIdx != -1) {
+				m_isRename = true;
+			}
+			return 0;
+		case m_savebtnID: //"save"ボタンの時
+			if (!m_isSave) {
+				m_isSave = true;
 			}
 			return 0;
 		case m_quitbtnID : //"quit"ボタンの時

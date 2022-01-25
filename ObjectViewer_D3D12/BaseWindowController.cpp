@@ -95,7 +95,7 @@ HRESULT BaseWindowController::CreateDropDownComboBox(HWND& hCb, LPCSTR text, int
 	hCb = CreateWindow(
 		"COMBOBOX",
 		text,
-		WS_CHILD | WS_VISIBLE | CBS_SORT | CBS_DROPDOWN,
+		WS_CHILD | WS_VISIBLE | CBS_DROPDOWN,
 		offsetX, offsetY,
 		width, height,
 		m_hwnd,

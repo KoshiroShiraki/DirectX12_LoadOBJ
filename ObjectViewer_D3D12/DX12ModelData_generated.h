@@ -352,13 +352,19 @@ inline flatbuffers::Offset<ModelChild> CreateModelChildDirect(
 struct ModelParent FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   typedef ModelParentBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_CHILD = 4
+    VT_NAME = 4,
+    VT_CHILD = 6
   };
+  const flatbuffers::String *name() const {
+    return GetPointer<const flatbuffers::String *>(VT_NAME);
+  }
   const flatbuffers::Vector<flatbuffers::Offset<DX12ModelData::ModelChild>> *child() const {
     return GetPointer<const flatbuffers::Vector<flatbuffers::Offset<DX12ModelData::ModelChild>> *>(VT_CHILD);
   }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
+           VerifyOffset(verifier, VT_NAME) &&
+           verifier.VerifyString(name()) &&
            VerifyOffset(verifier, VT_CHILD) &&
            verifier.VerifyVector(child()) &&
            verifier.VerifyVectorOfTables(child()) &&
@@ -370,6 +376,9 @@ struct ModelParentBuilder {
   typedef ModelParent Table;
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
+  void add_name(flatbuffers::Offset<flatbuffers::String> name) {
+    fbb_.AddOffset(ModelParent::VT_NAME, name);
+  }
   void add_child(flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<DX12ModelData::ModelChild>>> child) {
     fbb_.AddOffset(ModelParent::VT_CHILD, child);
   }
@@ -386,18 +395,23 @@ struct ModelParentBuilder {
 
 inline flatbuffers::Offset<ModelParent> CreateModelParent(
     flatbuffers::FlatBufferBuilder &_fbb,
+    flatbuffers::Offset<flatbuffers::String> name = 0,
     flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<DX12ModelData::ModelChild>>> child = 0) {
   ModelParentBuilder builder_(_fbb);
   builder_.add_child(child);
+  builder_.add_name(name);
   return builder_.Finish();
 }
 
 inline flatbuffers::Offset<ModelParent> CreateModelParentDirect(
     flatbuffers::FlatBufferBuilder &_fbb,
+    const char *name = nullptr,
     const std::vector<flatbuffers::Offset<DX12ModelData::ModelChild>> *child = nullptr) {
+  auto name__ = name ? _fbb.CreateString(name) : 0;
   auto child__ = child ? _fbb.CreateVector<flatbuffers::Offset<DX12ModelData::ModelChild>>(*child) : 0;
   return DX12ModelData::CreateModelParent(
       _fbb,
+      name__,
       child__);
 }
 

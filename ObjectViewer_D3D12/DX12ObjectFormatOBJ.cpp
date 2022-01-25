@@ -159,11 +159,6 @@ HRESULT DX12ObjectFormatOBJ::LoadVertexFromOBJFile(std::string filePath, ID3D12D
 		int offset = 0;
 		int k = 0;
 
-		flatbuffers::FlatBufferBuilder builder;
-		std::vector<flatbuffers::Offset<DX12ModelData::ModelChild>> fbModelChild_vector;
-		fbModelChild_vector.resize(objCnt);
-		flatbuffers::Offset<DX12ModelData::ModelParent> fbModelParent;
-
 		for (int i = 0; i < fd.size(); i++) {
 			//頂点データ
 			for (int j = 0; j < fd[i].size(); j++) {
@@ -173,7 +168,6 @@ HRESULT DX12ObjectFormatOBJ::LoadVertexFromOBJFile(std::string filePath, ID3D12D
 				tmpVert.normal = vn[fd[i][j][2]];
 				vertices.push_back(tmpVert);
 			}
-
 			//インデックスデータ
 			int indexOffset = indexNum;
 			for (int j = 0; j < (fd[i].size() - 2); j++) {
@@ -185,30 +179,6 @@ HRESULT DX12ObjectFormatOBJ::LoadVertexFromOBJFile(std::string filePath, ID3D12D
 
 			//3Dオブジェクト生成
 			if (i == obj_splitPos[k]) {
-				{
-					//フラットバッファ生成
-					std::vector<flatbuffers::Offset<DX12ModelData::Vertex>> fbVertices_vector;
-					fbVertices_vector.resize(vertices.size());
-					for (int j = 0; j < fbVertices_vector.size(); j++) {
-						DX12ModelData::Position pos = DX12ModelData::Position(vertices[j].position.x, vertices[j].position.y, vertices[j].position.z);
-						DX12ModelData::Normal norm = DX12ModelData::Normal(vertices[j].normal.x, vertices[j].normal.y, vertices[j].normal.z);
-						DX12ModelData::UV uv = DX12ModelData::UV(vertices[j].uv.x, vertices[j].uv.y);
-
-						flatbuffers::Offset<DX12ModelData::Vertex> tmp;
-
-						fbVertices_vector[j] = DX12ModelData::CreateVertex(builder, &pos, &norm, &uv);
-					}
-					flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<DX12ModelData::Vertex>>> fbVertices = builder.CreateVector(fbVertices_vector);
-					DX12ModelData::Color ambColor = DX12ModelData::Color(0.0f, 0.0f, 0.0f);
-					DX12ModelData::Color difColor = DX12ModelData::Color(1.0f, 1.0f, 1.0f);
-					DX12ModelData::Color speColor = DX12ModelData::Color(0.0f, 0.0f, 0.0f);
-					float N = 0.0f;
-					flatbuffers::Offset<DX12ModelData::Material> fbMaterial = DX12ModelData::CreateMaterial(builder, &ambColor, &difColor, &speColor, N);
-					auto fbIndices = builder.CreateVector(indices.data(), indices.size());
-					fbModelChild_vector[k] = DX12ModelData::CreateModelChild(builder, fbVertices, fbMaterial, fbIndices);
-				}
-
-
 				m_obj[k] = new DX12Object3D();
 				m_obj[k]->m_name = "Material" + std::to_string(k);
 
@@ -226,22 +196,13 @@ HRESULT DX12ObjectFormatOBJ::LoadVertexFromOBJFile(std::string filePath, ID3D12D
 			}
 		}
 
-		//出来上がったバイナリデータを出力(拡張子は.fmd = flatbuffers model data)
-		flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<DX12ModelData::ModelChild>>> fbModelChild = builder.CreateVector(fbModelChild_vector);
-		flatbuffers::Offset<DX12ModelData::ModelParent> ModelData = DX12ModelData::CreateModelParent(builder, fbModelChild);
-		builder.Finish(ModelData);
-
-		uint8_t* buf = builder.GetBufferPointer();
-
-		std::ofstream writeFile;
-		writeFile.open(fmdPath, std::ios::out | std::ios::binary);
-		writeFile.write((char*)buf, builder.GetSize());
-		writeFile.close();
-
 		m_name = name;
+
+		//Flatbuffersを使用し、シリアライズして保存
+		SaveFMDFile();
 	}
 
-	else {
+	else { //fmdファイルが存在する場合
 		ifs.seekg(0, std::ios::end);
 		size_t size = ifs.tellg();
 		ifs.seekg(0, std::ios::beg);
@@ -281,6 +242,67 @@ HRESULT DX12ObjectFormatOBJ::LoadVertexFromOBJFile(std::string filePath, ID3D12D
 	}
 
 	std::cout << "モデル読み込み終了(" << (clock() - loadTime) / 1000 << "秒)" << std::endl;
+
+	return S_OK;
+}
+
+HRESULT DX12ObjectFormatOBJ::SaveFMDFile() {
+	//フラットバッファ生成
+	std::vector<flatbuffers::Offset<DX12ModelData::Vertex>> fbVertices_vector;
+	//ビルダーの用意
+	flatbuffers::FlatBufferBuilder builder;
+	//子モデル配列
+	std::vector<flatbuffers::Offset<DX12ModelData::ModelChild>> fbModelChild_vector;
+	fbModelChild_vector.resize(m_obj.size());
+	//親モデル
+	flatbuffers::Offset<DX12ModelData::ModelParent> fbModelParent;
+
+	//子モデルの生成
+	for (int i = 0; i < m_obj.size(); i++) {
+		fbVertices_vector.resize(m_obj[i]->m_vertices.size());
+		for (int j = 0; j < fbVertices_vector.size(); j++) {
+			DX12ModelData::Position pos = DX12ModelData::Position(m_obj[i]->m_vertices[j].position.x, m_obj[i]->m_vertices[j].position.y, m_obj[i]->m_vertices[j].position.z);
+			DX12ModelData::Normal norm = DX12ModelData::Normal(m_obj[i]->m_vertices[j].normal.x, m_obj[i]->m_vertices[j].normal.y, m_obj[i]->m_vertices[j].normal.z);
+			DX12ModelData::UV uv = DX12ModelData::UV(m_obj[i]->m_vertices[j].uv.x, m_obj[i]->m_vertices[j].uv.y);
+
+			flatbuffers::Offset<DX12ModelData::Vertex> tmp;
+
+			fbVertices_vector[j] = DX12ModelData::CreateVertex(builder, &pos, &norm, &uv);
+		}
+
+		//頂点データの保存
+		flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<DX12ModelData::Vertex>>> fbVertices = builder.CreateVector(fbVertices_vector);
+		//マテリアルデータの保存
+		DX12ModelData::Color ambColor = DX12ModelData::Color(m_obj[i]->m_material.ambient.x, m_obj[i]->m_material.ambient.y, m_obj[i]->m_material.ambient.z);
+		DX12ModelData::Color difColor = DX12ModelData::Color(m_obj[i]->m_material.diffuse.x, m_obj[i]->m_material.diffuse.y, m_obj[i]->m_material.diffuse.z);
+		DX12ModelData::Color speColor = DX12ModelData::Color(m_obj[i]->m_material.specular.x, m_obj[i]->m_material.specular.y, m_obj[i]->m_material.specular.z);
+		float N = m_obj[i]->m_material.N;
+		
+		flatbuffers::Offset<DX12ModelData::Material> fbMaterial = DX12ModelData::CreateMaterial(builder, &ambColor, &difColor, &speColor, N);
+		
+		flatbuffers::Offset<flatbuffers::Vector<uint32_t>> fbIndices = builder.CreateVector(m_obj[i]->m_indices.data(), m_obj[i]->m_indices.size());
+		fbModelChild_vector[i] = DX12ModelData::CreateModelChild(builder, fbVertices, fbMaterial, fbIndices);
+	}
+
+	//出来上がったバイナリデータを出力(拡張子は.fmd = flatbuffers model data)
+	flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<DX12ModelData::ModelChild>>> fbModelChild = builder.CreateVector(fbModelChild_vector);
+	flatbuffers::Offset<flatbuffers::String> modelName = builder.CreateString(m_name);
+	flatbuffers::Offset<DX12ModelData::ModelParent> ModelData = DX12ModelData::CreateModelParent(builder, modelName, fbModelChild);
+	builder.Finish(ModelData);
+
+	//シリアライズされたバッファデータのポインタ取得
+	uint8_t* buf = builder.GetBufferPointer();
+
+	//保存するためのファイルパスを生成
+	char fmdPath[MAX_PATH_LENGTH];
+	PathController pc;
+	pc.CreatePath(("\\ObjectViewer_D3D12\\Model\\OBJ\\" + m_name + ".fmd").c_str(), fmdPath);
+
+	//保存
+	std::ofstream writeFile;
+	writeFile.open(fmdPath, std::ios::out | std::ios::binary);
+	writeFile.write((char*)buf, builder.GetSize());
+	writeFile.close();
 
 	return S_OK;
 }

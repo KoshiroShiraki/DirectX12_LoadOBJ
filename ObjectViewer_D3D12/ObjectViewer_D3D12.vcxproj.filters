@@ -66,6 +66,9 @@
     <ClCompile Include="ListWindowController.cpp">
       <Filter>ソースファイル</Filter>
     </ClCompile>
+    <ClCompile Include="RenameWindowController.cpp">
+      <Filter>ソースファイル</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.h">
@@ -117,6 +120,9 @@
       <Filter>ヘッダーファイル</Filter>
     </ClInclude>
     <ClInclude Include="EnvironmentEditorWindowController.h">
+      <Filter>ヘッダーファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="RenameWindowController.h">
       <Filter>ヘッダーファイル</Filter>
     </ClInclude>
   </ItemGroup>

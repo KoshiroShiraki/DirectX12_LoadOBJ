@@ -38,6 +38,7 @@
     </ClInclude>
     <ClInclude Include="Input.h" />
     <ClInclude Include="ErrorDebug.h" />
+    <ClInclude Include="RenameWindowController.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Application.cpp" />
@@ -56,6 +57,7 @@
     <ClCompile Include="MainWindowController.cpp" />
     <ClCompile Include="Object.cpp" />
     <ClCompile Include="PathController.cpp" />
+    <ClCompile Include="RenameWindowController.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="finalRenderPixelShader.hlsl">

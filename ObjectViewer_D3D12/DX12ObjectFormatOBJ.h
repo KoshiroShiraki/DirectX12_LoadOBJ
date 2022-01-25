@@ -20,7 +20,8 @@ public :
 	XMMATRIX m_wMatrix;
 
 
-	HRESULT LoadVertexFromOBJFile(std::string filePath, ID3D12Device* device);
+	HRESULT LoadVertexFromOBJFile(std::string filePath, ID3D12Device* device); //OBJファイルからの読み込み
+	HRESULT SaveFMDFile(); //Flatbuffersによってシリアライズされたデータをfmdファイルとして保存する
 	void splitBlank(std::string str, std::vector<std::string>& data);
 	void splitSlash(std::string str, int* data);
 	void UpdateTransform(float* data); //位置姿勢大きさのアップデート ID
