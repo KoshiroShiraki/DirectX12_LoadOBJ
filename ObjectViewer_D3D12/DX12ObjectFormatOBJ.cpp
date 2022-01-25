@@ -236,6 +236,17 @@ HRESULT DX12ObjectFormatOBJ::LoadVertexFromOBJFile(std::string filePath, ID3D12D
 			for (int j = 0; j < m_obj[i]->m_indices.size(); j++) {
 				m_obj[i]->m_indices[j] = data->child()->Get(i)->indices()->Get(j);
 			}
+			//マテリアルのコピー
+			m_obj[i]->m_material.ambient.x = data->child()->Get(i)->material()->amb()->r();
+			m_obj[i]->m_material.ambient.y = data->child()->Get(i)->material()->amb()->g();
+			m_obj[i]->m_material.ambient.z = data->child()->Get(i)->material()->amb()->b();
+			m_obj[i]->m_material.diffuse.x = data->child()->Get(i)->material()->dif()->r();
+			m_obj[i]->m_material.diffuse.y = data->child()->Get(i)->material()->dif()->g();
+			m_obj[i]->m_material.diffuse.z = data->child()->Get(i)->material()->dif()->b();
+			m_obj[i]->m_material.specular.x = data->child()->Get(i)->material()->spe()->r();
+			m_obj[i]->m_material.specular.y = data->child()->Get(i)->material()->spe()->g();
+			m_obj[i]->m_material.specular.z = data->child()->Get(i)->material()->spe()->b();
+
 			m_obj[i]->Create(device);
 		}
 		m_name = name;

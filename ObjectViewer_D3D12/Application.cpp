@@ -135,9 +135,12 @@ void Application::UpdateComboBox() {
 	for (int i = 0; i < DefaultObjFilePaths.size(); i++) {
 		char name[MAX_PATH_LENGTH];
 		pc.GetLeafDirectryName(DefaultObjFilePaths[i].c_str(), name, MAX_PATH_LENGTH);
-		std::cout << name << std::endl;
 		SendMessage(m_lwc->m_chwnd, CB_ADDSTRING, 0, (LPARAM)name);
 	}
+
+	//選択情報をリセット
+	m_lwc->m_parentIdx = -1; 
+	m_lwc->m_childIdx = -1;
 }
 
 void Application::UpdateListBox() {
@@ -154,6 +157,13 @@ void Application::UpdateListBox() {
 
 		}
 		m_lwc->m_isLoad = false;
+
+		//モデルがロードされたとき、fmdファイルが追加されている可能性があるので、モデルパス配列とコンボボックスを更新
+		DefaultObjFilePaths.clear();
+		DefaultObjFilePaths.shrink_to_fit();
+		SeekFile("obj");
+		SeekFile("fmd");
+		UpdateComboBox();
 	}
 
 	//モデルの複製
@@ -261,7 +271,7 @@ HRESULT Application::SeekFile(std::string format) {
 	WIN32_FIND_DATA fd;
 	hFind = FindFirstFile(path, &fd);
 	if (hFind == INVALID_HANDLE_VALUE) {
-		return ErrorMessage(("There is no" + format + " file"));
+		return ErrorMessage(("There is no " + format + " file"));
 	}
 	else {
 		char objFilesPath[MAX_PATH_LENGTH];

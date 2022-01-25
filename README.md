@@ -13,16 +13,6 @@
 なお、初期状態で用意しているモデルは"Floor.obj"を除いて、https://free3d.com/ja/3d-models/obj より無料でダウンロード可能なものを使用しています。
 
 
-〇操作方法
-
-フォルダ内の"操作説明.pdf"をご参照ください
-
-〇動作動画
-
-https://youtu.be/3nmoyx8PWyw
-
-
-
 cpp/hファイルが多いので、以下にそれぞれのファイルについて簡単に役割を示します。
 
 なお、今回は一つのcpp/hファイルに一つのクラスという形をとっています。
@@ -80,6 +70,7 @@ BaseWindowController.cpp/hは親クラスとして用意しています。本ア
 MainWindowController.cpp/hは、描画結果を表示するためのウィンドウを管理するクラスです。
 EditWindowController.cpp/hは、3D空間におけるいくつかのパラメータを制御するためのウィンドウを管理するクラスです。
 ListWindowController.cpp/hは、3Dモデルを列挙するためのウィンドウを管理するクラスです。
+RenameWindowController.cpp/hは、3Dモデルの名前を変更するためのウィンドウを管理するクラスです。
 
 ・PathController.cpp
 ファイルパスを管理するためのクラスです。
