@@ -2,15 +2,15 @@
 
 ## 〇実行手順
 
-**"\ObjectViewer\Debug\ObjectViewer_D3D12.exe"**実行ファイルより実行してください。
+"\ObjectViewer\Debug\ObjectViewer_D3D12.exe"実行ファイルより実行してください。
 
-**"\ObjectViewer\ObjectViewer_D3D12"**フォルダ内にソースコードがあります(".h", ".cpp", ".hlsl", ".hlsli")。
+"\ObjectViewer\ObjectViewer_D3D12"フォルダ内にソースコードがあります(".h", ".cpp", ".hlsl", ".hlsli")。
 
-なお、同フォルダ内の**"DirectXTex-master"**以下のものは、DirectX12にてテクスチャを簡単に扱うために外部から導入したものになりますので、私が制作したソースコードではありません。
+なお、同フォルダ内の"DirectXTex-master"以下のものは、DirectX12にてテクスチャを簡単に扱うために外部から導入したものになりますので、私が制作したソースコードではありません。
 
-*"\ObjectViewer\ObjectViewer_D3D12\Model\OBJ"*フォルダ内には実際にアプリケーションで読み込むための3Dモデルファイル(.obj)があります。同フォルダ内にwavefront社のOBJフォーマットで記述されているファイルを置けば、アプリケーションで読み込み可能となります。
+"\ObjectViewer\ObjectViewer_D3D12\Model\OBJ"フォルダ内には実際にアプリケーションで読み込むための3Dモデルファイル(.obj)があります。同フォルダ内にwavefront社のOBJフォーマットで記述されているファイルを置けば、アプリケーションで読み込み可能となります。
 
-なお、初期状態で用意しているモデルは*"Floor.obj"*を除いて、https://free3d.com/ja/3d-models/obj より無料でダウンロード可能なものを使用しています。
+なお、初期状態で用意しているモデルは"Floor.obj"を除いて、https://free3d.com/ja/3d-models/obj より無料でダウンロード可能なものを使用しています。
 
 
 cpp/hファイルが多いので、以下にそれぞれのファイルについて簡単に役割を示します。
@@ -18,8 +18,6 @@ cpp/hファイルが多いので、以下にそれぞれのファイルについ
 なお、今回は一つのcpp/hファイルに一つのクラスという形をとっています。
 
 cppファイルとhファイルは必ず1:1対応するように同じ名前を付けていますので、「〇〇.cpp/h」という書き方は、「〇〇.cppと〇〇.h」をまとめた表現になります。
-
-また、本アプリケーションは*Flatbuffers*を使用しています。
 
 ---
 
