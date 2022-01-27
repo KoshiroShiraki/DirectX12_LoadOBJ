@@ -8,6 +8,9 @@
 
 なお、同フォルダ内の"DirectXTex-master"以下のものは、DirectX12にてテクスチャを簡単に扱うために外部から導入したものになりますので、私が制作したソースコードではありません。
 
+また、本アプリケーションはFlatbuffers(https://google.github.io/flatbuffers/)を使用しています。
+DX12ModelData_generated.hは、記述したスキーマファイルをもとにFlatbuffersライブラリによって自動生成されたヘッダファイルになりますので、私が制作したソースコードではありません。
+
 "\ObjectViewer\ObjectViewer_D3D12\Model\OBJ"フォルダ内には実際にアプリケーションで読み込むための3Dモデルファイル(.obj)があります。同フォルダ内にwavefront社のOBJフォーマットで記述されているファイルを置けば、アプリケーションで読み込み可能となります。
 
 なお、初期状態で用意しているモデルは"Floor.obj"を除いて、https://free3d.com/ja/3d-models/obj より無料でダウンロード可能なものを使用しています。
