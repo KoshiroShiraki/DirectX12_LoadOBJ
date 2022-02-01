@@ -10,8 +10,15 @@ DirectXController::DirectXController() {
 	m_fvp.MaxDepth = 1.0f;
 	m_fvp.MinDepth = 0.0f;
 
+	//ビューポートの設定(カメラ用)
+	m_cvp.Width = window_Width;
+	m_cvp.Height = window_Height;
+	m_cvp.TopLeftX = 0;
+	m_cvp.TopLeftY = 0;
+	m_cvp.MaxDepth = 1.0f;
+	m_cvp.MinDepth = 0.0f;
+
 	//ビューポートの設定(シャドウマップ用)
-	D3D12_VIEWPORT vp;
 	m_svp.Width = m_shadowSolution;
 	m_svp.Height = m_shadowSolution;
 	m_svp.TopLeftX = 0;
@@ -22,8 +29,14 @@ DirectXController::DirectXController() {
 	//シザー矩形の設定(最終出力用)
 	m_fsr.top = 0;
 	m_fsr.left = 0;
-	m_fsr.right = m_fsr.left + m_shadowSolution;
-	m_fsr.bottom = m_fsr.top + m_shadowSolution;
+	m_fsr.right = m_fsr.left + window_Width;
+	m_fsr.bottom = m_fsr.top + window_Height;
+
+	//シザー矩形の設定(シャドウマップ用)
+	m_ssr.top = 0;
+	m_ssr.left = 0;
+	m_ssr.right = m_ssr.left + m_shadowSolution;
+	m_ssr.bottom = m_ssr.top + m_shadowSolution;
 }
 
 DirectXController::~DirectXController() {
@@ -547,6 +560,12 @@ HRESULT DirectXController::CreateShaders() {
 	if (FAILED(m_mpixelShader.CreateShader(L"PixelShader", "main", "ps_5_0", m_errorBlob))) {
 		return ErrorMessage("Failed to CreateShader");
 	}
+	if (FAILED(m_OutLineVertexShader.CreateShader(L"OutLineVertexShader", "main", "vs_5_0", m_errorBlob))) {
+		return ErrorMessage("Failed to Create OutLineVertexShader");
+	}
+	if (FAILED(m_OutLinePixelShader.CreateShader(L"OutLinePixelShader", "main", "ps_5_0", m_errorBlob))) {
+		return ErrorMessage("Failed to Create OutLinePixelShader");
+	}
 	if (FAILED(m_fvertexShader.CreateShader(L"finalRenderVertexShader", "main", "vs_5_0", m_errorBlob))) {
 		return ErrorMessage("Failed to CreateShader");
 	}
@@ -875,6 +894,18 @@ HRESULT DirectXController::CreateGraphicsPipeLine() {
 		return hr;
 	}
 
+	//輪郭線用パイプライン
+	//カリングモードとシェーダを変える
+	gPipeLine.RasterizerState.CullMode = D3D12_CULL_MODE_FRONT;
+	gPipeLine.VS.pShaderBytecode = m_OutLineVertexShader.GetBufferPointer();
+	gPipeLine.VS.BytecodeLength = m_OutLineVertexShader.GetBufferSize();
+	gPipeLine.PS.pShaderBytecode = m_OutLinePixelShader.GetBufferPointer();
+	gPipeLine.PS.BytecodeLength = m_OutLinePixelShader.GetBufferSize();
+	hr = m_device->CreateGraphicsPipelineState(&gPipeLine, IID_PPV_ARGS(&m_mbpipeLineState));
+	if (FAILED(hr)) {
+		std::cout << "Failed to Create GraphicsPipelineState\n";
+		return hr;
+	}
 
 
 	return S_OK;
@@ -900,7 +931,7 @@ HRESULT DirectXController::DrawFromLight(Light& light) {
 
 		//ビューポートとシザー矩形をセット
 		m_cmdList->RSSetViewports(1, &m_svp);
-		m_cmdList->RSSetScissorRects(1, &m_fsr);
+		m_cmdList->RSSetScissorRects(1, &m_ssr);
 
 		//プリミティブトポロジをセット
 		m_cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -967,15 +998,16 @@ HRESULT DirectXController::DrawFromCamera(Camera camera, Light light) {
 
 	//ここから、オブジェクトの数だけループ
 	for (int i = 0; i < m_objsOBJ.size(); i++) {
+		//輪郭線用モデルの描画
+
 		//パイプラインとルートシグネチャをセット
-		m_cmdList->SetPipelineState(m_mpipeLineState);
 		m_cmdList->SetGraphicsRootSignature(m_mrootsignature);
 
 		//レンダーターゲットと深度/ステンシルバッファをセット
 		m_cmdList->OMSetRenderTargets(1, &rtvH, false, &dsvH);
 
 		//ビューポートとシザー矩形をセット
-		m_cmdList->RSSetViewports(1, &m_fvp);
+		m_cmdList->RSSetViewports(1, &m_cvp);
 		m_cmdList->RSSetScissorRects(1, &m_fsr);
 
 		//シャドウテクスチャをセット
@@ -989,6 +1021,11 @@ HRESULT DirectXController::DrawFromCamera(Camera camera, Light light) {
 		//オブジェクトを描画
 		m_mmapMatrix->w = m_objsOBJ[i]->m_wMatrix;
 		for (int j = 0; j < m_objsOBJ[i]->m_obj.size(); j++) {
+			m_cmdList->SetPipelineState(m_mbpipeLineState);
+			m_objsOBJ[i]->m_obj[j]->Draw(m_cmdList, m_mcbvHeap, 0);
+		}
+		for (int j = 0; j < m_objsOBJ[i]->m_obj.size(); j++) {
+			m_cmdList->SetPipelineState(m_mpipeLineState);
 			m_objsOBJ[i]->m_obj[j]->Draw(m_cmdList, m_mcbvHeap, 0);
 		}
 		//コマンドリストを閉じる

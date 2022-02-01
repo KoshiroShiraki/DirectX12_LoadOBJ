@@ -99,10 +99,13 @@ public:
 	ID3D12DescriptorHeap* m_mcbvHeap = nullptr; //ディスクリプタヒープ(定数バッファ用)
 	MatrixData* m_mmapMatrix; //定数バッファのマップ用変数
 	ID3D12PipelineState* m_mpipeLineState = nullptr; //パイプラインステート
+	ID3D12PipelineState* m_mbpipeLineState = nullptr; //輪郭抽出用、背面カリングの方向を逆
 	ID3DBlob* m_mrootSig = nullptr; //ルートシグネチャのバイナリデータオブジェクト
 	ID3D12RootSignature* m_mrootsignature = nullptr; //ルートシグネチャ
 	DX12Shader m_mvertexShader; //バーテックスシェーダ
 	DX12Shader m_mpixelShader; //ピクセルシェーダ
+	DX12Shader m_OutLineVertexShader;
+	DX12Shader m_OutLinePixelShader;
 
 	//最終レンダリング m_f〇〇
 	ID3D12Resource* m_backBuffers[RT_BUFFER_COUNT]; //バックバッファ(レンダーターゲットバッファ)
@@ -123,10 +126,12 @@ public:
 	std::vector<DX12ObjectFormatOBJ*> m_objsOBJ; //描画する3Dモデル
 	int m_LoadedObjCount = 0; //描画済みモデル数
 
-private:
-	D3D12_VIEWPORT m_fvp = {};
+public:
+	D3D12_VIEWPORT m_fvp = {}; //最終出力時のビューポート
+	D3D12_VIEWPORT m_cvp = {};
 	D3D12_VIEWPORT m_svp = {};
 	D3D12_RECT m_fsr = {};
+	D3D12_RECT m_ssr = {};
 
 public:
 	HRESULT InitD3D(HWND hwnd);
